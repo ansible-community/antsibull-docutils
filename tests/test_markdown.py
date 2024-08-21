@@ -12,7 +12,12 @@ from __future__ import annotations
 
 import pytest
 
-from antsibull_docutils.markdown import GlobalContext, render_as_markdown
+from antsibull_docutils.markdown import (
+    Context,
+    DocumentContext,
+    GlobalContext,
+    render_as_markdown,
+)
 from antsibull_docutils.utils import get_document_structure
 
 RENDER_AS_MARKDOWN_AND_STRUCTURE_DATA = [
@@ -823,3 +828,36 @@ This is some text\. [Foo](\#foo\-3)\."""
         == expected
     )
     assert global_context.register_new_fragment("foo") == "foo-4"
+
+
+def test_context():
+    context = Context(has_top=False)
+    with pytest.raises(ValueError) as exc:
+        context.add_top("test")
+    assert str(exc.value) == "Context has no top part"
+
+    subcontext = Context(has_top=True)
+    with pytest.raises(ValueError) as exc:
+        context.append(subcontext)
+    assert str(exc.value) == "Context has no top part"
+
+    context2 = Context(has_top=True)
+    context2.append(subcontext)
+
+
+def test_document_context():
+    global_context = GlobalContext()
+    doc_context = DocumentContext(global_context)
+
+    with pytest.raises(ValueError) as exc:
+        doc_context.pop_context()
+    assert str(exc.value) == "Cannot pop last element"
+
+    previous_top = doc_context.top
+
+    a_context = Context()
+    doc_context.push_context(a_context)
+    assert doc_context.top is a_context
+    doc_context.pop_context()
+
+    assert doc_context.top is previous_top
