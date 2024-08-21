@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from antsibull_docutils.markdown import render_as_markdown
+from antsibull_docutils.markdown import GlobalContext, render_as_markdown
 from antsibull_docutils.utils import get_document_structure
 
 RENDER_AS_MARKDOWN_AND_STRUCTURE_DATA = [
@@ -783,3 +783,43 @@ def test_render_as_markdown(
     print(get_document_structure(input, parser_name=input_parser).output)
     assert result.output == output
     assert result.unsupported_class_names == unsupported_class_names
+
+
+def test_global_context():
+    global_context = GlobalContext()
+    assert global_context.register_new_fragment("foo") == "foo"
+    assert global_context.register_new_fragment("foo") == "foo-1"
+    assert global_context.register_new_fragment("foo") == "foo-2"
+    code = r"""
+====
+Test
+====
+
+Some test.
+
+.. _foo:
+.. _foobar:
+
+Foo
+^^^
+
+This is some text. `Foo`_.
+"""
+    expected = r"""# Test
+
+Some test\.
+
+<a id="foo-3"></a>
+<a id="foobar"></a>
+
+<a id="foo-1-1"></a>
+## Foo
+
+This is some text\. [Foo](\#foo\-3)\."""
+    assert (
+        render_as_markdown(
+            code, global_context=global_context, parser_name="restructuredtext"
+        ).output
+        == expected
+    )
+    assert global_context.register_new_fragment("foo") == "foo-4"

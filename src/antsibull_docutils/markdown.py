@@ -44,7 +44,7 @@ class GlobalContext:
         """
         if label in self.labels:
             return self.labels[label]
-        fragment = _urllib_quote(label, safe="")
+        fragment = self.register_new_fragment(_urllib_quote(label, safe=""))
         self.labels[label] = fragment
         self.fragments.add(fragment)
         return fragment
