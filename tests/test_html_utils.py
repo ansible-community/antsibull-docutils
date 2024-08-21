@@ -12,14 +12,14 @@ from __future__ import annotations
 
 import pytest
 
-from antsibull_docutils.html_utils import html_escape
+from antsibull_docutils.html_utils import html_argument_escape, html_escape
 
 
 @pytest.mark.parametrize(
     "text, escaped",
     [
         ("", ""),
-        ("Test", "Test"),
+        ("Te'st", "Te&#x27;st"),
         (
             '<a href="https://example.com/?foo=bar&baz=bam">Test</a>',
             '&lt;a href="https://example.com/?foo=bar&amp;baz=bam"&gt;Test&lt;/a&gt;',
@@ -28,4 +28,20 @@ from antsibull_docutils.html_utils import html_escape
 )
 def test_html_escape(text, escaped):
     result = html_escape(text)
+    assert result == escaped
+
+
+@pytest.mark.parametrize(
+    "text, escaped",
+    [
+        ("", ""),
+        ("Te'st", "Te&#x27;st"),
+        (
+            '<a href="https://example.com/?foo=bar&baz=bam">Test</a>',
+            "&lt;a href=&quot;https://example.com/?foo=bar&amp;baz=bam&quot;&gt;Test&lt;/a&gt;",
+        ),
+    ],
+)
+def test_html_argument_escape(text, escaped):
+    result = html_argument_escape(text)
     assert result == escaped

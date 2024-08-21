@@ -19,7 +19,7 @@ from docutils.core import publish_parts
 from docutils.writers.html5_polyglot import HTMLTranslator
 from docutils.writers.html5_polyglot import Writer as HTMLWriter
 
-from .html_utils import html_escape
+from .html_utils import html_argument_escape, html_escape
 from .md_utils import md_escape
 from .utils import RenderResult, SupportedParser, get_docutils_publish_settings
 
@@ -32,6 +32,7 @@ class GlobalContext:
     # How labels are mapped to link fragments
     labels: dict[str, str]
 
+    # HTML fragments used so far
     fragments: set[str]
 
     def __init__(self):
@@ -620,13 +621,13 @@ class Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
             # We can only handle width and height with a HTML <img> tag
             attributes = []
             if alt:
-                attributes.append(f'alt="{html_escape(alt)}"')
+                attributes.append(f'alt="{html_argument_escape(alt)}"')
             if width:
-                attributes.append(f'width="{html_escape(str(width))}"')
+                attributes.append(f'width="{html_argument_escape(str(width))}"')
             if height:
-                attributes.append(f'height="{html_escape(str(height))}"')
+                attributes.append(f'height="{html_argument_escape(str(height))}"')
             self._context.top.add_main(
-                f'<img src="{html_escape(uri)}" {" ".join(attributes)}>\n'
+                f'<img src="{html_argument_escape(uri)}" {" ".join(attributes)}>\n'
             )
         else:
             self._context.top.add_main(f"![{md_escape(alt)}]({md_escape(uri)})\n")
@@ -657,7 +658,7 @@ class Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     def visit_problematic(self, node):
         if "refid" in node.attributes:
             self._context.top.add_main(
-                f'<a href="#{html_escape(node.attributes["refid"])}">'
+                f'<a href="#{html_argument_escape(node.attributes["refid"])}">'
             )
         self._context.top.add_main('<span class="problematic">')
 
@@ -709,6 +710,16 @@ def render_as_markdown(
 ) -> RenderResult:
     """
     Render the document as MarkDown.
+
+    :arg source: The document.
+    :kwarg parser_name: The parser to use for ``source``.
+    :kwarg global_context: An optional ``GlobalContext`` object.
+    :kwarg source_path: An optional path for ``source``, to be used in error
+        messages.
+    :kwarg destination_path: An optional path for where the destination will
+        be stored, to be used in error messages.
+    :return: A ``RenderResult`` object containing the output and further
+        information.
     """
     if global_context is None:
         global_context = GlobalContext()

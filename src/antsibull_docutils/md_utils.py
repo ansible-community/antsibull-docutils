@@ -20,3 +20,6 @@ def md_escape(text: str) -> str:
     Escape a text for MarkDown.
     """
     return _MD_ESCAPE.sub(r"\\\1", text)
+
+
+__all__ = ("md_escape",)
