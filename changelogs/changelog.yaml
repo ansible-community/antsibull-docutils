@@ -1,3 +1,13 @@
 ---
 ancestor: null
-releases: {}
+releases:
+  1.0.0:
+    changes:
+      release_summary: 'Initial release.
+
+
+        The codebase has been migrated from antsibull-changelog, with a few bugfixes
+        and improvements.'
+    fragments:
+      - 1.0.0.yml
+    release_date: '2024-08-21'
