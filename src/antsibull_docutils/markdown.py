@@ -44,7 +44,7 @@ class GlobalContext:
         """
         if label in self.labels:
             return self.labels[label]
-        fragment = _urllib_quote(label, safe="")
+        fragment = self.register_new_fragment(_urllib_quote(label, safe=""))
         self.labels[label] = fragment
         self.fragments.add(fragment)
         return fragment
@@ -477,7 +477,7 @@ class Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
                         self.add_main(f"{indent}{line}\n")
                     indent = list_context.next_indent
                 if not self._main:
-                    self.add_main(f"{indent}\\ \n")
+                    self.add_main(f"{indent.rstrip(' ')}\n")
 
         self._context.push_context(ListItemContext())
 
@@ -577,8 +577,12 @@ class Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
                 self.ensure_double_newline()
                 lines = self.get_text().rstrip("\n").splitlines()
                 # See https://github.com/orgs/community/discussions/16925 for the syntax
-                self.replace_main(["> [!NOTE]\n"] + [f"> {line}\n" for line in lines])
+                self.replace_main(
+                    ["> [!NOTE]\n"]
+                    + [f"> {line}\n" if line else ">\n" for line in lines]
+                )
 
+        self._context.top.ensure_double_newline()
         self._context.push_context(NoteContext())
 
     # pylint: disable-next=missing-function-docstring,unused-argument

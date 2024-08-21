@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from antsibull_docutils.markdown import render_as_markdown
+from antsibull_docutils.markdown import GlobalContext, render_as_markdown
 from antsibull_docutils.utils import get_document_structure
 
 RENDER_AS_MARKDOWN_AND_STRUCTURE_DATA = [
@@ -88,9 +88,8 @@ An enumeration:
    And some code.
    ```
 1. another one
-1. \ 
+1.
 1. a last one""",
-        # TODO: instead of '- \ ', use '-'
         set(),
     ),
     (
@@ -204,7 +203,7 @@ A line\.
 > [!NOTE]
 > This is a note\.
 > A second line\!
-> 
+>
 > And a second paragraph\.""",
         set(),
     ),
@@ -361,7 +360,7 @@ An enumeration:
    - Another entry
 
      1. Subenum
-     
+
         .. code:: markdown
 
             Some codeblock:
@@ -385,7 +384,7 @@ Some code:
 .. note::
 
   Some note.
-  
+
   This note has two paragraphs.
 
 A sub-sub-title
@@ -443,7 +442,7 @@ A list\:
 
   This is still item 2\.
 - Item 3\.
-- \ 
+-
 - Item 5 after an empty item\.
 
 An enumeration\:
@@ -478,9 +477,10 @@ def main(argv):
     if argv[1] == 'help':
         print('Help!')
 ```
+
 > [!NOTE]
 > Some note\.
-> 
+>
 > This note has two paragraphs\.
 
 <a id="a-sub-sub-title"></a>
@@ -727,6 +727,18 @@ A block quote:
 .. note::
 
   And another note.
+
+- A list item
+- .. note::
+
+    This is a note.
+    A second line!
+
+    And a second paragraph.
+
+  .. note::
+
+    And another note.
 """,
         "restructuredtext",
         r"""A block quote\:
@@ -735,15 +747,25 @@ A block quote:
 > Another line\.
 >
 > Another paragraph\.
+
 > [!NOTE]
 > This is a note\.
 > A second line\!
-> 
+>
 > And a second paragraph\.
+
 > [!NOTE]
-> And another note\.""",
-        # TODO: Expecting a newline before [!NOTE].
-        # TODO: Also there should not be a trailing space.
+> And another note\.
+
+- A list item
+- > [!NOTE]
+  > This is a note\.
+  > A second line\!
+  >
+  > And a second paragraph\.
+
+  > [!NOTE]
+  > And another note\.""",
         set(),
     ),
 ]
@@ -761,3 +783,43 @@ def test_render_as_markdown(
     print(get_document_structure(input, parser_name=input_parser).output)
     assert result.output == output
     assert result.unsupported_class_names == unsupported_class_names
+
+
+def test_global_context():
+    global_context = GlobalContext()
+    assert global_context.register_new_fragment("foo") == "foo"
+    assert global_context.register_new_fragment("foo") == "foo-1"
+    assert global_context.register_new_fragment("foo") == "foo-2"
+    code = r"""
+====
+Test
+====
+
+Some test.
+
+.. _foo:
+.. _foobar:
+
+Foo
+^^^
+
+This is some text. `Foo`_.
+"""
+    expected = r"""# Test
+
+Some test\.
+
+<a id="foo-3"></a>
+<a id="foobar"></a>
+
+<a id="foo-1-1"></a>
+## Foo
+
+This is some text\. [Foo](\#foo\-3)\."""
+    assert (
+        render_as_markdown(
+            code, global_context=global_context, parser_name="restructuredtext"
+        ).output
+        == expected
+    )
+    assert global_context.register_new_fragment("foo") == "foo-4"
