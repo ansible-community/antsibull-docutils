@@ -14,6 +14,10 @@ A Python library with some [docutils](https://www.docutils.org/) helpers used by
 
 antsibull-docutils is covered by the [Ansible Code of Conduct](https://docs.ansible.com/ansible/latest/community/code_of_conduct.html).
 
+## Docutils support
+
+In CI, compatibility with docutils 0.18+ is tested. Older versions of docutils might work as well, depending on your use-case. The tests do not pass for 0.16 and 0.17, as these versions emit different IDs and HTML (for tables). 0.16 also handles code blocks differently, and they will not be emitted with the MarkDown renderer.
+
 ## Development
 
 Install and run `nox` to run all tests. That's it for simple contributions!
