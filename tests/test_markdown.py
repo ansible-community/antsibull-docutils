@@ -477,6 +477,7 @@ def main(argv):
     if argv[1] == 'help':
         print('Help!')
 ```
+
 > [!NOTE]
 > Some note\.
 >
@@ -726,6 +727,18 @@ A block quote:
 .. note::
 
   And another note.
+
+- A list item
+- .. note::
+
+    This is a note.
+    A second line!
+
+    And a second paragraph.
+
+  .. note::
+
+    And another note.
 """,
         "restructuredtext",
         r"""A block quote\:
@@ -734,14 +747,25 @@ A block quote:
 > Another line\.
 >
 > Another paragraph\.
+
 > [!NOTE]
 > This is a note\.
 > A second line\!
 >
 > And a second paragraph\.
+
 > [!NOTE]
-> And another note\.""",
-        # TODO: Expecting a newline before [!NOTE].
+> And another note\.
+
+- A list item
+- > [!NOTE]
+  > This is a note\.
+  > A second line\!
+  >
+  > And a second paragraph\.
+
+  > [!NOTE]
+  > And another note\.""",
         set(),
     ),
 ]

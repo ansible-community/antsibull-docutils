@@ -582,6 +582,7 @@ class Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
                     + [f"> {line}\n" if line else ">\n" for line in lines]
                 )
 
+        self._context.top.ensure_double_newline()
         self._context.push_context(NoteContext())
 
     # pylint: disable-next=missing-function-docstring,unused-argument
