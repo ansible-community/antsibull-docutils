@@ -577,7 +577,10 @@ class Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
                 self.ensure_double_newline()
                 lines = self.get_text().rstrip("\n").splitlines()
                 # See https://github.com/orgs/community/discussions/16925 for the syntax
-                self.replace_main(["> [!NOTE]\n"] + [f"> {line}\n" for line in lines])
+                self.replace_main(
+                    ["> [!NOTE]\n"]
+                    + [f"> {line}\n" if line else ">\n" for line in lines]
+                )
 
         self._context.push_context(NoteContext())
 

@@ -203,7 +203,7 @@ A line\.
 > [!NOTE]
 > This is a note\.
 > A second line\!
-> 
+>
 > And a second paragraph\.""",
         set(),
     ),
@@ -479,7 +479,7 @@ def main(argv):
 ```
 > [!NOTE]
 > Some note\.
-> 
+>
 > This note has two paragraphs\.
 
 <a id="a-sub-sub-title"></a>
@@ -737,12 +737,11 @@ A block quote:
 > [!NOTE]
 > This is a note\.
 > A second line\!
-> 
+>
 > And a second paragraph\.
 > [!NOTE]
 > And another note\.""",
         # TODO: Expecting a newline before [!NOTE].
-        # TODO: Also there should not be a trailing space.
         set(),
     ),
 ]
