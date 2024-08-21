@@ -477,7 +477,7 @@ class Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
                         self.add_main(f"{indent}{line}\n")
                     indent = list_context.next_indent
                 if not self._main:
-                    self.add_main(f"{indent}\\ \n")
+                    self.add_main(f"{indent.rstrip(' ')}\n")
 
         self._context.push_context(ListItemContext())
 

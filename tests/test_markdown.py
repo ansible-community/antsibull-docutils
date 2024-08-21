@@ -88,9 +88,8 @@ An enumeration:
    And some code.
    ```
 1. another one
-1. \ 
+1.
 1. a last one""",
-        # TODO: instead of '- \ ', use '-'
         set(),
     ),
     (
@@ -361,7 +360,7 @@ An enumeration:
    - Another entry
 
      1. Subenum
-     
+
         .. code:: markdown
 
             Some codeblock:
@@ -385,7 +384,7 @@ Some code:
 .. note::
 
   Some note.
-  
+
   This note has two paragraphs.
 
 A sub-sub-title
@@ -443,7 +442,7 @@ A list\:
 
   This is still item 2\.
 - Item 3\.
-- \ 
+-
 - Item 5 after an empty item\.
 
 An enumeration\:
