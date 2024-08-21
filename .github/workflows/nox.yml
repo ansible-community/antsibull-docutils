@@ -10,9 +10,9 @@ name: nox
     branches: [main]
   pull_request:
     branches: [main]
-  # Run once per week (Monday at 04:00 UTC)
+  # Run once per week (Monday at 03:00 UTC)
   schedule:
-    - cron: '0 4 * * 1'
+    - cron: '0 3 * * 1'
   workflow_dispatch:
 
 env:
@@ -32,12 +32,32 @@ jobs:
             python-versions: "3.9, 3.10, 3.11, 3.12"
             codecov: true
             packages: ""
+            docutils_version: ""
+
+          - session: test
+            python-versions: "3.9, 3.10, 3.11, 3.12"
+            codecov: true
+            packages: ""
+            docutils_version: "0.20"
+
+          - session: test
+            python-versions: "3.9, 3.10, 3.11, 3.12"
+            codecov: true
+            packages: ""
+            docutils_version: "0.19"
+
+          - session: test
+            python-versions: "3.9, 3.10, 3.11, 3.12"
+            codecov: true
+            packages: ""
+            docutils_version: "0.18"
 
           - session: lint
             python-versions: "3.12"
             codecov: false
             packages: ""
-    name: "Run nox ${{ matrix.session }} session"
+            docutils_version: ""
+    name: "Run nox ${{ matrix.session }} session (docutils ${{ matrix.docutils_version || 'latest'}})"
     steps:
       - name: Check out antsibull-docutils
         uses: actions/checkout@v4
@@ -47,6 +67,10 @@ jobs:
         if: "matrix.packages != ''"
         run: |
           sudo apt-get install -y ${{ matrix.packages }}
+      - name: Fix docutils version to ${{ matrix.docutils_version }}
+        if: "matrix.docutils_version != ''"
+        run: |
+          sed -i -e 's/"docutils"/"docutils == ${{ matrix.docutils_version }}"/g' pyproject.toml
       - name: Setup nox
         uses: wntrblm/nox@2024.04.15
         with:
