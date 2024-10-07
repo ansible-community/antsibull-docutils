@@ -696,7 +696,8 @@ class MarkDownWriter(writers.Writer):
         Translate the document node tree to MarkDown.
         """
         translator = self.translator_class(self.document, self.document_context)
-        self.document.walkabout(translator)
+        if self.document:
+            self.document.walkabout(translator)
         self.output = translator.get_text()
 
 
