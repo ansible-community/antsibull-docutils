@@ -736,8 +736,9 @@ def render_as_markdown(
             warnings_stream=warnings_stream
         ),
     )
+    whole = parts["whole"]
     return RenderResult(
-        parts["whole"],
+        whole.decode("utf-8") if isinstance(whole, bytes) else whole,
         document_context.unknown_node_types,
         warnings_stream.getvalue().splitlines(),
     )
