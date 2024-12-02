@@ -1,0 +1,2 @@
+bugfixes:
+  - "Ensure that docutils' ``publish_parts()`` ``whole`` output is a text string and not bytes (https://github.com/ansible-community/antsibull-docutils/pull/6)."
