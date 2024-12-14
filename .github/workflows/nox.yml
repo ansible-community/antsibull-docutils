@@ -38,7 +38,13 @@ jobs:
             python-versions: "3.9, 3.10, 3.11, 3.12, 3.13"
             codecov: true
             packages: ""
-            docutils_version: "0.20"
+            docutils_version: "0.21.2"
+
+          - session: test
+            python-versions: "3.9, 3.10, 3.11, 3.12, 3.13"
+            codecov: true
+            packages: ""
+            docutils_version: "0.20.1"
 
           - session: test
             python-versions: "3.9, 3.10, 3.11, 3.12, 3.13"
@@ -50,7 +56,7 @@ jobs:
             python-versions: "3.9, 3.10, 3.11, 3.12, 3.13"
             codecov: true
             packages: ""
-            docutils_version: "0.18"
+            docutils_version: "0.18.1"
 
           - session: lint
             python-versions: "3.13"
