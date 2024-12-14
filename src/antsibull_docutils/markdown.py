@@ -726,6 +726,7 @@ def render_as_markdown(
         global_context = GlobalContext()
     document_context = DocumentContext(global_context)
     warnings_stream = io.StringIO()
+    # pylint: disable=duplicate-code
     parts = publish_parts(
         source=source,
         source_path=source_path,
@@ -736,6 +737,7 @@ def render_as_markdown(
             warnings_stream=warnings_stream
         ),
     )
+    # pylint: enable=duplicate-code
     whole = parts["whole"]
     return RenderResult(
         whole.decode("utf-8") if isinstance(whole, bytes) else whole,
