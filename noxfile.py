@@ -6,7 +6,6 @@
 import contextlib
 import os
 import tempfile
-from functools import partial
 from pathlib import Path
 
 import nox
