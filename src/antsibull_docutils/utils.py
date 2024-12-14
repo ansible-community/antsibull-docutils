@@ -71,7 +71,12 @@ def get_document_structure(
             warnings_stream=warnings_stream
         ),
     )
-    return RenderResult(parts["whole"], set(), warnings_stream.getvalue().splitlines())
+    whole = parts["whole"]
+    return RenderResult(
+        whole.decode("utf-8") if isinstance(whole, bytes) else whole,
+        set(),
+        warnings_stream.getvalue().splitlines(),
+    )
 
 
 def ensure_newline_after_last_content(lines: list[str]) -> None:
