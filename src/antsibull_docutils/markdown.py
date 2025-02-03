@@ -259,7 +259,7 @@ def _add_unsupported_classes(clazz: _Class) -> _Class:
 
 
 def _add_simple(
-    definitions: dict[str, tuple[str, str]]
+    definitions: dict[str, tuple[str, str]],
 ) -> t.Callable[[_Class], _Class]:
     def decorator(clazz: _Class) -> _Class:
         def get_visit(start: str):
