@@ -227,8 +227,10 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
             if not found_in_code:
                 position_exact = False
         if not found_in_code:
-            # We were not able to find hte code 'the easy way'. This could be because
+            # We were not able to find the code 'the easy way'. This could be because
             # it is inside a table.
+
+            # pylint: disable-next=fixme
             pass  # TODO search for the content, f.ex. in tables
         self.__callback(
             language,
