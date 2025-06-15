@@ -24,6 +24,12 @@ from docutils.parsers.rst.directives import register_directive
 from docutils.parsers.rst.directives import unchanged as directive_param_unchanged
 from docutils.utils import Reporter, SystemMessage
 
+_SPECIAL_ATTRIBUTES = (
+    "antsibull-code-language",
+    "antsibull-code-block",
+    "antsibull-code-lineno",
+)
+
 
 class IgnoreDirective(Directive):
     """
@@ -37,14 +43,24 @@ class IgnoreDirective(Directive):
 
 
 def mark_antsibull_code_block(
-    node: nodes.literal_block, *, language: str | None, line: int
+    node: nodes.literal_block,
+    *,
+    language: str | None,
+    line: int,
+    other: dict[str, t.Any] | None = None,
 ) -> None:
     """
     Mark a literal block as an Antsibull code block with given language and line number.
+
+    Everything in ``other`` will be available as ``antsibull-other-{key}`` for a key ``key``
+    in ``other`` in the node's attributes.
     """
     node["antsibull-code-language"] = language
     node["antsibull-code-block"] = True
     node["antsibull-code-lineno"] = line
+    if other:
+        for key, value in other.items():
+            node[f"antsibull-other-{key}"] = value
 
 
 class CodeBlockDirective(Directive):
@@ -92,7 +108,9 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
         self,
         document: nodes.document,
         content: str,
-        callback: t.Callable[[str, int, int, bool, str], None],
+        callback: t.Callable[
+            [str, int, int, bool, bool, str, nodes.literal_block], None
+        ],
         warn_unknown_block: t.Callable[[int | str, int, nodes.literal_block], None],
     ):
         super().__init__(document)
@@ -114,6 +132,12 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
 
     @staticmethod
     def _find_indent(content: str) -> int | None:
+        """
+        Given concatenated lines, find the minimum indent if possible.
+
+        If all lines consist only out of whitespace (or are empty),
+        ``None`` is returned.
+        """
         min_indent = None
         for line in content.split("\n"):
             stripped_line = line.lstrip()
@@ -123,7 +147,14 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
                     min_indent = indent
         return min_indent
 
-    def _find_offset(self, lineno: int, content: str) -> tuple[int, int]:
+    def _find_offset(self, lineno: int, content: str) -> tuple[int, int, bool]:
+        """
+        Try to identify the row/col offset of the code in ``content`` in the document.
+
+        ``lineno`` is assumed to be the line where the code-block starts.
+        This function looks for an empty line, followed by the right pattern of
+        empty and non-empty lines.
+        """
         row_offset = lineno
         found_empty_line = False
         found_content_lines = False
@@ -150,9 +181,15 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
 
         min_source_indent = self._find_indent(content)
         col_offset = max(0, (min_indent or 0) - (min_source_indent or 0))
-        return row_offset, col_offset
+        return row_offset, col_offset, content_lines == 0
 
     def _find_in_code(self, row_offset: int, col_offset: int, content: str) -> bool:
+        """
+        Check whether the code can be found at the given row/col offset in a way
+        that makes it easy to replace.
+
+        That is, it is surrounded only by whitespace.
+        """
         for index, line in enumerate(content.split("\n")):
             if row_offset + index >= len(self.__content_lines):
                 return False
@@ -178,13 +215,29 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
 
         language = node.attributes["antsibull-code-language"]
         lineno = node.attributes["antsibull-code-lineno"]
-        row_offset, col_offset = self._find_offset(lineno, node.rawsource)
+        row_offset, col_offset, position_exact = self._find_offset(
+            lineno, node.rawsource
+        )
+        found_in_code = False
+        if position_exact:
+            # If we think we have the exact position, try to identify the code.
+            # ``found_in_code`` indicates that it is easy to replace the code,
+            # and at the same time it's easy to identify it.
+            found_in_code = self._find_in_code(row_offset, col_offset, node.rawsource)
+            if not found_in_code:
+                position_exact = False
+        if not found_in_code:
+            # We were not able to find hte code 'the easy way'. This could be because
+            # it is inside a table.
+            pass  # TODO search for the content, f.ex. in tables
         self.__callback(
             language,
             row_offset,
             col_offset,
-            self._find_in_code(row_offset, col_offset, node.rawsource),
+            position_exact,
+            found_in_code,
             node.rawsource.rstrip() + "\n",
+            node,
         )
         raise nodes.SkipNode
 
@@ -253,12 +306,21 @@ class CodeBlockInfo:
     row_offset: int
     col_offset: int
 
+    # Whether the position (row/col_offset) is exact.
+    # If set to ``False``, the position is approximate and col_offset is often 0.
+    position_exact: bool
+
     # Whether the code block's contents can be found as-is in the RST file,
     # only indented by whitespace, and with potentially trailing whitespace
-    directly_in_content: bool
+    directly_replacable_in_content: bool
 
     # The code block's contents
     content: str
+
+    # The code block's attributes that start with ``antsibull-``.
+    # Special attributes used by ``find_code_blocks()`` to keep track of
+    # certain properties are not present.
+    attributes: dict[str, t.Any]
 
 
 def find_code_blocks(
@@ -284,20 +346,28 @@ def find_code_blocks(
     # using this ugly list
     results = []
 
-    def callback(
+    def callback(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         language: str,
         row_offset: int,
         col_offset: int,
-        directly_in_content: bool,
+        position_exact: bool,
+        directly_replacable_in_content: bool,
         content: str,
+        node: nodes.literal_block,
     ) -> None:
         results.append(
             CodeBlockInfo(
                 language=language,
                 row_offset=row_offset,
                 col_offset=col_offset,
-                directly_in_content=directly_in_content,
+                position_exact=position_exact,
+                directly_replacable_in_content=directly_replacable_in_content,
                 content=content,
+                attributes={
+                    key: value
+                    for key, value in node.attributes.items()
+                    if key not in _SPECIAL_ATTRIBUTES and key.startswith("antsibull-")
+                },
             )
         )
 

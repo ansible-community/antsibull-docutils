@@ -54,22 +54,28 @@ Test
                 language=None,
                 row_offset=5,
                 col_offset=2,
+                position_exact=True,
                 directly_in_content=True,
                 content="Foo\nBar\n",
+                attributes={},
             ),
             CodeBlockInfo(
                 language="python",
                 row_offset=13,
                 col_offset=4,
+                position_exact=True,
                 directly_in_content=True,
                 content="  Foo\n\nBar\n",
+                attributes={},
             ),
             CodeBlockInfo(
                 language="foo",
                 row_offset=19,
                 col_offset=0,
+                position_exact=False,
                 directly_in_content=False,
                 content="\n",
+                attributes={},
             ),
         ],
     ),
@@ -102,42 +108,128 @@ Test
 |     !bar           |                               |
 |                    |        !bar                   |
 +--------------------+-------------------------------+
+
+1. Test
+2. Here is another table:
+
+   +------------------------------+
+   | .. code::                    |
+   |                              |
+   |   A test                     |
+   +------------------------------+
+   | .. code::                    |
+   |   :caption: bla              |
+   |                              |
+   |   Another test               |
+   +------------------------------+
+
+3. Here is a CSV table:
+
+   .. csv-table::
+     :header: "Foo", "Bar"
+
+     "A ""cell""!", ".. code::
+
+       foo
+       bar 1!"
+     "Another cell", "A final one"
+
+4. And here's a list table:
+
+   .. list-table::
+     :header-rows: 1
+
+     * - Foo
+       - Bar
+     * - A "cell"!
+       - .. code::
+
+           foo
+           bar 2!
+     * - Another cell
+       - A final one
 """.lstrip(),
         [
             CodeBlockInfo(
                 language=None,
                 row_offset=3,
                 col_offset=0,
+                position_exact=False,
                 directly_in_content=False,
                 content="foo\n\n  bar\n",
+                attributes={},
             ),
             CodeBlockInfo(
                 language="python",
                 row_offset=5,
                 col_offset=0,
+                position_exact=False,
                 directly_in_content=False,
                 content="def foo(bar):\n    return bar + 1\n",
+                attributes={},
             ),
             CodeBlockInfo(
                 language="c++",
                 row_offset=15,
                 col_offset=0,
+                position_exact=False,
                 directly_in_content=False,
                 content="template<typename T>\nstd::vector<T> create()\n{ return {}; }\n",
+                attributes={},
             ),
             CodeBlockInfo(
                 language="foo",
                 row_offset=22,
                 col_offset=0,
+                position_exact=False,
                 directly_in_content=False,
                 content="foo\n\n  !bar\n",
+                attributes={},
             ),
             CodeBlockInfo(
                 language="bar",
                 row_offset=22,
                 col_offset=0,
+                position_exact=False,
                 directly_in_content=False,
                 content="foo\n\n  !bar\n",
+                attributes={},
+            ),
+            CodeBlockInfo(
+                language=None,
+                row_offset=34,
+                col_offset=3,
+                position_exact=False,
+                directly_in_content=False,
+                content="A test\n",
+                attributes={},
+            ),
+            CodeBlockInfo(
+                language=None,
+                row_offset=38,
+                col_offset=3,
+                position_exact=False,
+                directly_in_content=False,
+                content="Another test\n",
+                attributes={},
+            ),
+            CodeBlockInfo(
+                language=None,
+                row_offset=49,
+                col_offset=7,
+                position_exact=False,
+                directly_in_content=False,
+                content="foo\nbar 1!\n",
+                attributes={},
+            ),
+            CodeBlockInfo(
+                language=None,
+                row_offset=63,
+                col_offset=11,
+                position_exact=True,
+                directly_in_content=True,
+                content="foo\nbar 2!\n",
+                attributes={},
             ),
         ],
     ),
