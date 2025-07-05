@@ -4,6 +4,19 @@ Antsibull docutils helpers Release Notes
 
 .. contents:: Topics
 
+v1.2.1
+======
+
+Release Summary
+---------------
+
+Bugfix release.
+
+Bugfixes
+--------
+
+- Ensure that ``path`` and ``root_prefix`` for ``antsibull_docutils.rst_code_finder.find_code_blocks()`` can actually be path-like objects (https://github.com/ansible-community/antsibull-docutils/pull/13).
+
 v1.2.0
 ======
 
