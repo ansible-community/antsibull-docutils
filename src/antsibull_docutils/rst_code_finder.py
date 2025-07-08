@@ -286,8 +286,12 @@ def _parse_document(
 
     # Parse the document
     try:
+        # mypy gives errors for the next line, but this is literally what docutils itself
+        # is also doing. So we're going to ignore this error...
         return publisher.reader.read(
-            publisher.source, publisher.parser, publisher.settings
+            publisher.source,
+            publisher.parser,
+            publisher.settings,  # type: ignore
         )
     except SystemMessage as exc:
         raise ValueError(f"Cannot parse document: {exc}") from exc

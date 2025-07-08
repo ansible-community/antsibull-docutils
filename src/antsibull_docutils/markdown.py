@@ -729,8 +729,11 @@ def render_as_markdown(
     # pylint: disable=duplicate-code
     parts = publish_parts(
         source=source,
-        source_path=source_path,
-        destination_path=destination_path,
+        # The type information for the following two parameters seems to be wrong.
+        # According to the docutils sources the expected type is StrPath | None, which
+        # is defined as str | os.PathLike[str] | None.
+        source_path=source_path,  # type: ignore
+        destination_path=destination_path,  # type: ignore
         parser_name=parser_name,
         writer=MarkDownWriter(document_context),
         settings_overrides=get_docutils_publish_settings(
