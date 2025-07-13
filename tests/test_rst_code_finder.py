@@ -161,7 +161,7 @@ Test
         [
             CodeBlockInfo(
                 language=None,
-                row_offset=3,
+                row_offset=4,
                 col_offset=0,
                 position_exact=False,
                 directly_replacable_in_content=False,
@@ -170,7 +170,7 @@ Test
             ),
             CodeBlockInfo(
                 language="python",
-                row_offset=5,
+                row_offset=6,
                 col_offset=0,
                 position_exact=False,
                 directly_replacable_in_content=False,
@@ -179,7 +179,7 @@ Test
             ),
             CodeBlockInfo(
                 language="c++",
-                row_offset=15,
+                row_offset=17,
                 col_offset=0,
                 position_exact=False,
                 directly_replacable_in_content=False,
@@ -188,7 +188,7 @@ Test
             ),
             CodeBlockInfo(
                 language="foo",
-                row_offset=22,
+                row_offset=23,
                 col_offset=0,
                 position_exact=False,
                 directly_replacable_in_content=False,
@@ -197,7 +197,7 @@ Test
             ),
             CodeBlockInfo(
                 language="bar",
-                row_offset=22,
+                row_offset=24,
                 col_offset=0,
                 position_exact=False,
                 directly_replacable_in_content=False,
@@ -206,7 +206,7 @@ Test
             ),
             CodeBlockInfo(
                 language=None,
-                row_offset=34,
+                row_offset=35,
                 col_offset=3,
                 position_exact=False,
                 directly_replacable_in_content=False,
@@ -215,7 +215,7 @@ Test
             ),
             CodeBlockInfo(
                 language=None,
-                row_offset=38,
+                row_offset=40,
                 col_offset=3,
                 position_exact=False,
                 directly_replacable_in_content=False,
@@ -378,9 +378,10 @@ def test__find_indent(source: str, expected_indent: int | None) -> None:
     assert indent == expected_indent
 
 
-FIND_OFFSET: list[tuple[int, str, str, int, int, bool]] = [
+FIND_OFFSET: list[tuple[int | None, int | None, str, str, int, int, bool]] = [
     (
         2,
+        None,
         r"""Foo
  Bar
 """,
@@ -399,6 +400,7 @@ Afterwards.
     ),
     (
         2,
+        None,
         r"""Foo
  Bar
 """,
@@ -417,6 +419,7 @@ Afterwards.
     ),
     (
         2,
+        None,
         r"""Foo
  Bar
 """,
@@ -435,6 +438,7 @@ Afterwards.
     ),
     (
         2,
+        None,
         r"""Foo
 
  Bar
@@ -455,6 +459,7 @@ Afterwards.
     ),
     (
         2,
+        None,
         r"""Foo
  Bar
 """,
@@ -469,11 +474,12 @@ Afterwards.
 
 
 @pytest.mark.parametrize(
-    "lineno, content, document_content, expected_line, expected_col, expected_position_exact",
+    "lineno, content_offset, content, document_content, expected_line, expected_col, expected_position_exact",
     FIND_OFFSET,
 )
 def test__find_offset(
-    lineno: int,
+    lineno: int | None,
+    content_offset: int | None,
     content: str,
     document_content: str,
     expected_line: int,
@@ -481,7 +487,10 @@ def test__find_offset(
     expected_position_exact: bool,
 ) -> None:
     line, col, position_exact = _find_offset(
-        lineno, content, document_content_lines=document_content.splitlines()
+        lineno,
+        content_offset,
+        content,
+        document_content_lines=document_content.splitlines(),
     )
     print(line, col, position_exact)
     assert line == expected_line
