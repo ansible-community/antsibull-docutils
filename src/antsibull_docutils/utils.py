@@ -11,11 +11,18 @@ Utility code for rendering.
 from __future__ import annotations
 
 import io
+import os
 import typing as t
+from collections.abc import Mapping
 from dataclasses import dataclass
 
-from docutils.core import publish_parts
+from docutils import nodes
+from docutils.core import Publisher, publish_parts
+from docutils.io import StringInput
+from docutils.parsers.rst import Directive
+from docutils.parsers.rst.directives import register_directive
 from docutils.utils import Reporter as DocutilsReporter
+from docutils.utils import SystemMessage
 
 SupportedParser = t.Union[t.Literal["restructuredtext"], t.Literal["markdown"]]
 
@@ -87,10 +94,61 @@ def ensure_newline_after_last_content(lines: list[str]) -> None:
         lines.append("")
 
 
+def parse_document(
+    content: str,
+    *,
+    parser_name: SupportedParser,
+    path: str | os.PathLike[str] | None = None,
+    root_prefix: str | os.PathLike[str] | None = None,
+    rst_directives: Mapping[str, t.Type[Directive]] | None = None,
+) -> nodes.document:
+    """
+    Parse an already loaded document with the given parser.
+    """
+
+    if rst_directives:
+        # pylint: disable-next=fixme
+        # TODO: figure out how to register a directive only temporarily
+        for directive_name, directive_class in rst_directives.items():
+            register_directive(directive_name, directive_class)
+
+    # We create a Publisher only to have a mechanism which gives us the settings object.
+    # Doing this more explicit is a bad idea since the classes used are deprecated and will
+    # eventually get replaced. Publisher.get_settings() looks like a stable enough API that
+    # we can 'just use'.
+    publisher = Publisher(source_class=StringInput)
+    reader_name = "standalone"
+    writer_name = "pseudoxml"  # doesn't matter, since we just need the parsed document
+    publisher.set_components(reader_name, parser_name, writer_name)
+    override = get_docutils_publish_settings(warnings_stream=io.StringIO())
+    override.update(
+        {
+            "root_prefix": str(root_prefix),
+        }
+    )
+    publisher.process_programmatic_settings(None, override, None)
+    publisher.set_source(content, str(path))
+
+    # Parse the document
+    try:
+        # mypy gives errors for the next line, but this is literally what docutils itself
+        # is also doing. So we're going to ignore this error...
+        return publisher.reader.read(
+            publisher.source,
+            publisher.parser,
+            publisher.settings,  # type: ignore
+        )
+    except SystemMessage as exc:
+        raise ValueError(f"Cannot parse document: {exc}") from exc
+    except Exception as exc:
+        raise ValueError(f"Unexpected error while parsing document: {exc}") from exc
+
+
 __all__ = (
     "SupportedParser",
     "RenderResult",
     "get_docutils_publish_settings",
     "get_document_structure",
     "ensure_newline_after_last_content",
+    "parse_document",
 )
