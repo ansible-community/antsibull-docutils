@@ -329,6 +329,24 @@ FIND_INDENT: list[tuple[str, int | None]] = [
         """,
         None,
     ),
+    (
+        r"""
+        x
+        """,
+        8,
+    ),
+    (
+        r"""
+Foo
+        """,
+        0,
+    ),
+    (
+        r"""        Foo
+
+   Bar""",
+        3,
+    ),
 ]
 
 
@@ -340,21 +358,90 @@ def test__find_indent(source: str, expected_indent: int | None) -> None:
 
 FIND_OFFSET: list[tuple[int, str, str, int, int, bool]] = [
     (
-        1,
+        2,
         r"""Foo
-Bar
+ Bar
 """,
         r"""
 .. code-block::
+    :foo: bar
 
     Foo
-    Bar
+     Bar
 
 Afterwards.
         """,
-        3,
+        4,
+        4,
+        True,
+    ),
+    (
+        2,
+        r"""Foo
+ Bar
+""",
+        r"""
+   .. code-block::
+       :foo: bar
+
+      Foo
+       Bar
+
+Afterwards.
+        """,
+        4,
+        6,
+        True,
+    ),
+    (
+        2,
+        r"""Foo
+ Bar
+""",
+        r"""
++-----------------+
+| .. code-block:: |
+|    :foo: bar    |
+|                 |
+|     Foo         |
+|      Bar        |
++-----------------+
+        """,
+        2,
         0,
         True,
+    ),
+    (
+        2,
+        r"""Foo
+
+ Bar
+""",
+        r"""
++-----------------+
+| .. code-block:: |
+|    :foo: bar    |
+|                 |
+|     Foo         |
+|                 |
+|      Bar        |
++-----------------+
+        """,
+        2,
+        0,
+        True,
+    ),
+    (
+        2,
+        r"""Foo
+ Bar
+""",
+        r"""
+.. code-block::
+        """,
+        3,
+        0,
+        False,
     ),
 ]
 
@@ -374,6 +461,7 @@ def test__find_offset(
     line, col, position_exact = _find_offset(
         lineno, content, document_content_lines=document_content.splitlines()
     )
+    print(line, col, position_exact)
     assert line == expected_line
     assert col == expected_col
     assert position_exact == expected_position_exact
@@ -381,19 +469,131 @@ def test__find_offset(
 
 FIND_IN_CODE: list[tuple[int, int, str, str, bool]] = [
     (
-        3,
         4,
+        3,
         r"""Foo
 Bar""",
         r"""
 .. code-block::
+    :foo: bar
 
-    Foo
-    Bar
+   Foo
+   Bar
 
 Afterwards.
         """,
         True,
+    ),
+    (
+        4,
+        3,
+        r"""Foo
+
+  Bar""",
+        r"""
+.. code-block::
+    :foo: bar
+
+   Foo
+  
+     Bar
+
+Afterwards.
+        """,
+        True,
+    ),
+    (
+        4,
+        3,
+        r"""Foo
+Bar""",
+        r"""
+.. code-block::
+    :foo: bar
+
+   Foo
+    Bar
+
+Afterwards.
+        """,
+        False,
+    ),
+    (
+        4,
+        3,
+        r"""Foo
+Bar""",
+        r"""
+.. code-block::
+    :foo: bar
+
+   Foo""",
+        False,
+    ),
+    (
+        4,
+        3,
+        r"""Foo
+Bar""",
+        r"""
+.. code-block::
+    :foo: bar
+
+   Foo
+  Bar
+""",
+        False,
+    ),
+    (
+        2,
+        0,
+        r"""Foo
+ Bar
+""",
+        r"""
++-----------------+
+| .. code-block:: |
+|    :foo: bar    |
+|                 |
+|     Foo         |
+|      Bar        |
++-----------------+
+        """,
+        False,
+    ),
+    (
+        2,
+        2,
+        r"""Foo
+ Bar
+""",
+        r"""
++-----------------+
+| .. code-block:: |
+|    :foo: bar    |
+|                 |
+|     Foo         |
+|      Bar        |
++-----------------+
+        """,
+        False,
+    ),
+    (
+        5,
+        6,
+        r"""Foo
+ Bar
+""",
+        r"""
++-----------------+
+| .. code-block:: |
+|    :foo: bar    |
+|                 |
+|     Foo         |
+|      Bar        |
++-----------------+
+        """,
+        False,
     ),
 ]
 
