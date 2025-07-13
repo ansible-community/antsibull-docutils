@@ -24,6 +24,7 @@ from .utils import parse_document
 _SPECIAL_ATTRIBUTES = (
     "antsibull-code-language",
     "antsibull-code-block",
+    "antsibull-code-content-offset",
     "antsibull-code-lineno",
 )
 
@@ -43,7 +44,8 @@ def mark_antsibull_code_block(
     node: nodes.literal_block,
     *,
     language: str | None,
-    line: int,
+    line: int | None = None,
+    content_offset: int | None = None,
     other: dict[str, t.Any] | None = None,
 ) -> None:
     """
@@ -52,9 +54,14 @@ def mark_antsibull_code_block(
     Everything in ``other`` will be available as ``antsibull-other-{key}`` for a key ``key``
     in ``other`` in the node's attributes.
     """
+    if (line is None) == (content_offset is None):
+        raise AssertionError(  # pragma: no cover
+            "At least one of line and content_offset must be provided"
+        )
     node["antsibull-code-language"] = language
     node["antsibull-code-block"] = True
     node["antsibull-code-lineno"] = line
+    node["antsibull-code-content-offset"] = content_offset
     if other:
         for key, value in other.items():
             node[f"antsibull-other-{key}"] = value
@@ -91,7 +98,7 @@ class CodeBlockDirective(Directive):
         mark_antsibull_code_block(
             literal,
             language=self.arguments[0] if self.arguments else None,
-            line=self.lineno,
+            content_offset=self.content_offset,
         )
         return [literal]
 
@@ -113,8 +120,38 @@ def _find_indent(content: str) -> int | None:
     return min_indent
 
 
+def _find_offset_from_content_offset(
+    content_offset: int, content: str, *, document_content_lines: list[str]
+) -> tuple[int, int, bool]:
+    """
+    Try to identify the row/col offset of the code in ``content`` in the document.
+
+    ``content_offset`` is assumed to be the content_offset where the code-block's
+    contents start.
+    """
+    content_lines = content.count("\n") + 1
+    min_indent = None
+    for line in document_content_lines[content_offset:]:
+        if content_lines <= 0:
+            break
+        stripped_line = line.strip()
+        if stripped_line:
+            indent = len(line) - len(line.lstrip())
+            if min_indent is None or min_indent > indent:
+                min_indent = indent
+        content_lines -= 1
+
+    min_source_indent = _find_indent(content)
+    col_offset = max(0, (min_indent or 0) - (min_source_indent or 0))
+    return content_offset, col_offset, content_lines == 0
+
+
 def _find_offset(
-    lineno: int, content: str, *, document_content_lines: list[str]
+    lineno: int | None,
+    content_offset: int | None,
+    content: str,
+    *,
+    document_content_lines: list[str],
 ) -> tuple[int, int, bool]:
     """
     Try to identify the row/col offset of the code in ``content`` in the document.
@@ -123,6 +160,12 @@ def _find_offset(
     This function looks for an empty line, followed by the right pattern of
     empty and non-empty lines.
     """
+    if content_offset is not None:
+        return _find_offset_from_content_offset(
+            content_offset, content, document_content_lines=document_content_lines
+        )
+
+    assert lineno is not None
     row_offset = lineno
     found_empty_line = False
     found_content_lines = False
@@ -225,8 +268,12 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
 
         language = node.attributes["antsibull-code-language"]
         lineno = node.attributes["antsibull-code-lineno"]
+        content_offset = node.attributes["antsibull-code-content-offset"]
         row_offset, col_offset, position_exact = _find_offset(
-            lineno, node.rawsource, document_content_lines=self.__content_lines
+            lineno,
+            content_offset,
+            node.rawsource,
+            document_content_lines=self.__content_lines,
         )
         found_in_code = False
         if position_exact:
