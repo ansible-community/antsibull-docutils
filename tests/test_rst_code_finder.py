@@ -284,17 +284,37 @@ Foo
   foobar
 
 Some invalid `markup <foo>
+
+.. highlight:: python
+
+::
+
+  def foo():
+    pass
+
+.. literalinclude:: nox.py
+
+| a
+| b
+  c
 """
     found_warnings = []
+    found_warnings_2 = []
 
     def add_warning(line: int | str, col: int, message: str) -> None:
         found_warnings.append((line, col, message))
+
+    def add_warning_2(
+        line: int | str, col: int, message: str, unknown_origin: bool
+    ) -> None:
+        found_warnings_2.append((line, col, message, unknown_origin))
 
     found_code_block_infos = list(
         find_code_blocks(
             source,
             extra_directives={"foo": CodeBlockTest},
             warn_unknown_block=add_warning,
+            warn_unknown_block_w_unknown_info=add_warning_2,
         )
     )
     assert found_code_block_infos == [
@@ -317,9 +337,11 @@ Some invalid `markup <foo>
             attributes={},
         ),
     ]
-    assert found_warnings == [
-        (6, 0, "bar"),
-        (12, 0, "bazbam"),
+    assert found_warnings == []
+    assert found_warnings_2 == [
+        (6, 0, "bar", False),
+        (12, 0, "bazbam", False),
+        (24, 0, "def foo():\n  pass", False),
     ]
 
 

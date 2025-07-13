@@ -1,6 +1,3 @@
-bugfixes:
-  - "Make sure that all code blocks without language are found
-     (https://github.com/ansible-community/antsibull-docutils/pull/14)."
 minor_changes:
   - "Add functionality to parse documents, and to search for code blocks in parsed documents.
      This allows to perform other operations on the parsed document, instead of having to parse

@@ -191,7 +191,9 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
         callback: t.Callable[
             [str, int, int, bool, bool, str, nodes.literal_block], None
         ],
-        warn_unknown_block: t.Callable[[int | str, int, nodes.literal_block], None],
+        warn_unknown_block: t.Callable[
+            [int | str, int, nodes.literal_block, bool], None
+        ],
     ):
         super().__init__(document)
         self.__content_lines = content.splitlines()
@@ -216,7 +218,9 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
         """
         if "antsibull-code-block" not in node.attributes:
             # This could be a `::` block, or something else (unknown)
-            self.__warn_unknown_block(node.line or "unknown", 0, node)
+            self.__warn_unknown_block(
+                node.line or "unknown", 0, node, bool(node.attributes["classes"])
+            )
             raise nodes.SkipNode
 
         language = node.attributes["antsibull-code-language"]
@@ -316,6 +320,9 @@ def find_code_blocks_in_document(
     document: nodes.document,
     content: str,
     warn_unknown_block: t.Callable[[int | str, int, str], None] | None = None,
+    warn_unknown_block_w_unknown_info: (
+        t.Callable[[int | str, int, str, bool], None] | None
+    ) = None,
 ) -> t.Generator[CodeBlockInfo]:
     """
     Given a parsed RST document, finds all code blocks.
@@ -323,6 +330,12 @@ def find_code_blocks_in_document(
     All code blocks must be parsed with special directives
     (see ``get_code_block_directives()``) that have appropriate metadata
     registered with ``mark_antsibull_code_block()``.
+
+    You can provide callbacks:
+    * ``warn_unknown_block()`` will be called for every literal block
+      that's of unknown origin.
+    * ``warn_unknown_block_w_unknown_info()`` will be called for every
+      literal block that's of known or unknown origin.
     """
     # If someone can figure out how to yield from a sub-function, we can avoid
     # using this ugly list
@@ -357,9 +370,14 @@ def find_code_blocks_in_document(
         line: int | str,
         col: int,
         node: nodes.literal_block,
+        unknown_directive: bool,
     ) -> None:
-        if warn_unknown_block:
+        if warn_unknown_block and unknown_directive:
             warn_unknown_block(line, col, node.rawsource)
+        if warn_unknown_block_w_unknown_info:
+            warn_unknown_block_w_unknown_info(
+                line, col, node.rawsource, unknown_directive
+            )
 
     # Process the document
     try:
@@ -371,13 +389,16 @@ def find_code_blocks_in_document(
         yield from results
 
 
-def find_code_blocks(
+def find_code_blocks(  # pylint: disable=too-many-arguments
     content: str,
     *,
     path: str | os.PathLike[str] | None = None,
     root_prefix: str | os.PathLike[str] | None = None,
     extra_directives: Mapping[str, t.Type[Directive]] | None = None,
     warn_unknown_block: t.Callable[[int | str, int, str], None] | None = None,
+    warn_unknown_block_w_unknown_info: (
+        t.Callable[[int | str, int, str, bool], None] | None
+    ) = None,
 ) -> t.Generator[CodeBlockInfo]:
     """
     Given a RST document, finds all code blocks.
@@ -385,6 +406,12 @@ def find_code_blocks(
     To add support for own types of code blocks, you can pass these
     as ``extra_directives``. Use ``mark_antsibull_code_block()`` to
     mark them to be found by ``find_code_blocks()``.
+
+    You can provide callbacks:
+    * ``warn_unknown_block()`` will be called for every literal block
+      that's of unknown origin.
+    * ``warn_unknown_block_w_unknown_info()`` will be called for every
+      literal block that's of known or unknown origin.
     """
     directives = get_code_block_directives(extra_directives=extra_directives)
 
@@ -400,6 +427,7 @@ def find_code_blocks(
         document=doc,
         content=content,
         warn_unknown_block=warn_unknown_block,
+        warn_unknown_block_w_unknown_info=warn_unknown_block_w_unknown_info,
     )
 
 
