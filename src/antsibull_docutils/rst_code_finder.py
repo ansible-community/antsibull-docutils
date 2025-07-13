@@ -10,19 +10,16 @@ Find code blocks in RST files.
 
 from __future__ import annotations
 
-import io
 import os
 import typing as t
 from collections.abc import Mapping
 from dataclasses import dataclass
 
 from docutils import nodes
-from docutils.core import Publisher
-from docutils.io import StringInput
 from docutils.parsers.rst import Directive
-from docutils.parsers.rst.directives import register_directive
 from docutils.parsers.rst.directives import unchanged as directive_param_unchanged
-from docutils.utils import Reporter, SystemMessage
+
+from .utils import parse_document
 
 _SPECIAL_ATTRIBUTES = (
     "antsibull-code-language",
@@ -99,6 +96,89 @@ class CodeBlockDirective(Directive):
         return [literal]
 
 
+def _find_indent(content: str) -> int | None:
+    """
+    Given concatenated lines, find the minimum indent if possible.
+
+    If all lines consist only out of whitespace (or are empty),
+    ``None`` is returned.
+    """
+    min_indent = None
+    for line in content.split("\n"):
+        stripped_line = line.lstrip()
+        if stripped_line:
+            indent = len(line) - len(line.lstrip())
+            if min_indent is None or min_indent > indent:
+                min_indent = indent
+    return min_indent
+
+
+def _find_offset(
+    lineno: int, content: str, *, document_content_lines: list[str]
+) -> tuple[int, int, bool]:
+    """
+    Try to identify the row/col offset of the code in ``content`` in the document.
+
+    ``lineno`` is assumed to be the line where the code-block starts.
+    This function looks for an empty line, followed by the right pattern of
+    empty and non-empty lines.
+    """
+    row_offset = lineno
+    found_empty_line = False
+    found_content_lines = False
+    content_lines = content.count("\n") + 1
+    min_indent = None
+    for offset, line in enumerate(document_content_lines[lineno:]):
+        stripped_line = line.strip()
+        if not stripped_line:
+            if not found_empty_line:
+                row_offset = lineno + offset + 1
+                found_empty_line = True
+        elif not found_content_lines:
+            found_content_lines = True
+            row_offset = lineno + offset
+
+        if found_content_lines and content_lines > 0:
+            if stripped_line:
+                indent = len(line) - len(line.lstrip())
+                if min_indent is None or min_indent > indent:
+                    min_indent = indent
+            content_lines -= 1
+        elif not content_lines:
+            break
+
+    min_source_indent = _find_indent(content)
+    col_offset = max(0, (min_indent or 0) - (min_source_indent or 0))
+    return row_offset, col_offset, content_lines == 0
+
+
+def _find_in_code(
+    row_offset: int,
+    col_offset: int,
+    content: str,
+    *,
+    document_content_lines: list[str],
+) -> bool:
+    """
+    Check whether the code can be found at the given row/col offset in a way
+    that makes it easy to replace.
+
+    That is, it is surrounded only by whitespace.
+    """
+    for index, line in enumerate(content.split("\n")):
+        if row_offset + index >= len(document_content_lines):
+            return False
+        found_line = document_content_lines[row_offset + index]
+        if found_line[:col_offset].strip():
+            return False
+        eol = found_line[col_offset:]
+        if eol[: len(line)] != line:
+            return False
+        if eol[len(line) :].strip():
+            return False
+    return True
+
+
 class CodeBlockVisitor(nodes.SparseNodeVisitor):
     """
     Visitor that calls callbacks for all code blocks.
@@ -130,100 +210,31 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
         """
         raise nodes.SkipNode
 
-    @staticmethod
-    def _find_indent(content: str) -> int | None:
-        """
-        Given concatenated lines, find the minimum indent if possible.
-
-        If all lines consist only out of whitespace (or are empty),
-        ``None`` is returned.
-        """
-        min_indent = None
-        for line in content.split("\n"):
-            stripped_line = line.lstrip()
-            if stripped_line:
-                indent = len(line) - len(line.lstrip())
-                if min_indent is None or min_indent > indent:
-                    min_indent = indent
-        return min_indent
-
-    def _find_offset(self, lineno: int, content: str) -> tuple[int, int, bool]:
-        """
-        Try to identify the row/col offset of the code in ``content`` in the document.
-
-        ``lineno`` is assumed to be the line where the code-block starts.
-        This function looks for an empty line, followed by the right pattern of
-        empty and non-empty lines.
-        """
-        row_offset = lineno
-        found_empty_line = False
-        found_content_lines = False
-        content_lines = content.count("\n") + 1
-        min_indent = None
-        for offset, line in enumerate(self.__content_lines[lineno:]):
-            stripped_line = line.strip()
-            if not stripped_line:
-                if not found_empty_line:
-                    row_offset = lineno + offset + 1
-                    found_empty_line = True
-            elif not found_content_lines:
-                found_content_lines = True
-                row_offset = lineno + offset
-
-            if found_content_lines and content_lines > 0:
-                if stripped_line:
-                    indent = len(line) - len(line.lstrip())
-                    if min_indent is None or min_indent > indent:
-                        min_indent = indent
-                content_lines -= 1
-            elif not content_lines:
-                break
-
-        min_source_indent = self._find_indent(content)
-        col_offset = max(0, (min_indent or 0) - (min_source_indent or 0))
-        return row_offset, col_offset, content_lines == 0
-
-    def _find_in_code(self, row_offset: int, col_offset: int, content: str) -> bool:
-        """
-        Check whether the code can be found at the given row/col offset in a way
-        that makes it easy to replace.
-
-        That is, it is surrounded only by whitespace.
-        """
-        for index, line in enumerate(content.split("\n")):
-            if row_offset + index >= len(self.__content_lines):
-                return False
-            found_line = self.__content_lines[row_offset + index]
-            if found_line[:col_offset].strip():
-                return False
-            eol = found_line[col_offset:]
-            if eol[: len(line)] != line:
-                return False
-            if eol[len(line) :].strip():
-                return False
-        return True
-
     def visit_literal_block(self, node: nodes.literal_block) -> None:
         """
         Visit a code block.
         """
         if "antsibull-code-block" not in node.attributes:
-            if node.attributes["classes"]:
-                # This could be a `::` block, or something else (unknown)
-                self.__warn_unknown_block(node.line or "unknown", 0, node)
+            # This could be a `::` block, or something else (unknown)
+            self.__warn_unknown_block(node.line or "unknown", 0, node)
             raise nodes.SkipNode
 
         language = node.attributes["antsibull-code-language"]
         lineno = node.attributes["antsibull-code-lineno"]
-        row_offset, col_offset, position_exact = self._find_offset(
-            lineno, node.rawsource
+        row_offset, col_offset, position_exact = _find_offset(
+            lineno, node.rawsource, document_content_lines=self.__content_lines
         )
         found_in_code = False
         if position_exact:
             # If we think we have the exact position, try to identify the code.
             # ``found_in_code`` indicates that it is easy to replace the code,
             # and at the same time it's easy to identify it.
-            found_in_code = self._find_in_code(row_offset, col_offset, node.rawsource)
+            found_in_code = _find_in_code(
+                row_offset,
+                col_offset,
+                node.rawsource,
+                document_content_lines=self.__content_lines,
+            )
             if not found_in_code:
                 position_exact = False
         if not found_in_code:
@@ -252,51 +263,6 @@ _DIRECTIVES: dict[str, t.Type[Directive]] = {
     # The following docutils directives should better be ignored:
     "parsed-literal": IgnoreDirective,
 }
-
-
-def _parse_document(
-    content: str,
-    *,
-    path: str | os.PathLike[str] | None,
-    root_prefix: str | os.PathLike[str] | None,
-    directives: dict[str, t.Type[Directive]],
-) -> nodes.document:
-    # pylint: disable-next=fixme
-    # TODO: figure out how to register a directive only temporarily
-    for directive_name, directive_class in directives.items():
-        register_directive(directive_name, directive_class)
-
-    # We create a Publisher only to have a mechanism which gives us the settings object.
-    # Doing this more explicit is a bad idea since the classes used are deprecated and will
-    # eventually get replaced. Publisher.get_settings() looks like a stable enough API that
-    # we can 'just use'.
-    publisher = Publisher(source_class=StringInput)
-    publisher.set_components("standalone", "restructuredtext", "pseudoxml")
-    override = {
-        "root_prefix": str(root_prefix),
-        "input_encoding": "utf-8",
-        "file_insertion_enabled": False,
-        "raw_enabled": False,
-        "_disable_config": True,
-        "report_level": Reporter.ERROR_LEVEL,
-        "warning_stream": io.StringIO(),
-    }
-    publisher.process_programmatic_settings(None, override, None)
-    publisher.set_source(content, str(path))
-
-    # Parse the document
-    try:
-        # mypy gives errors for the next line, but this is literally what docutils itself
-        # is also doing. So we're going to ignore this error...
-        return publisher.reader.read(
-            publisher.source,
-            publisher.parser,
-            publisher.settings,  # type: ignore
-        )
-    except SystemMessage as exc:
-        raise ValueError(f"Cannot parse document: {exc}") from exc
-    except Exception as exc:
-        raise ValueError(f"Unexpected error while parsing document: {exc}") from exc
 
 
 @dataclass
@@ -329,25 +295,35 @@ class CodeBlockInfo:
     attributes: dict[str, t.Any]
 
 
-def find_code_blocks(
-    content: str,
+def get_code_block_directives(
     *,
-    path: str | os.PathLike[str] | None = None,
-    root_prefix: str | os.PathLike[str] | None = None,
     extra_directives: Mapping[str, t.Type[Directive]] | None = None,
-    warn_unknown_block: t.Callable[[int | str, int, str], None] | None = None,
-) -> t.Generator[CodeBlockInfo]:
+) -> Mapping[str, t.Type[Directive]]:
     """
-    Given a RST document, finds all code blocks.
+    Return directives needed to find all code blocks.
+
+    You can pass an optional mapping with directives that will be added
+    to the result.
     """
     directives = _DIRECTIVES.copy()
     if extra_directives:
         directives.update(extra_directives)
+    return directives
 
-    doc = _parse_document(
-        content, directives=directives, path=path, root_prefix=root_prefix
-    )
 
+def find_code_blocks_in_document(
+    *,
+    document: nodes.document,
+    content: str,
+    warn_unknown_block: t.Callable[[int | str, int, str], None] | None = None,
+) -> t.Generator[CodeBlockInfo]:
+    """
+    Given a parsed RST document, finds all code blocks.
+
+    All code blocks must be parsed with special directives
+    (see ``get_code_block_directives()``) that have appropriate metadata
+    registered with ``mark_antsibull_code_block()``.
+    """
     # If someone can figure out how to yield from a sub-function, we can avoid
     # using this ugly list
     results = []
@@ -387,12 +363,44 @@ def find_code_blocks(
 
     # Process the document
     try:
-        visitor = CodeBlockVisitor(doc, content, callback, warn_unknown_block_cb)
-        doc.walk(visitor)
-    except Exception as exc:
-        raise ValueError(f"Cannot process document: {exc}") from exc
+        visitor = CodeBlockVisitor(document, content, callback, warn_unknown_block_cb)
+        document.walk(visitor)
+    except Exception as exc:  # pragma: no cover
+        raise ValueError(f"Cannot process document: {exc}") from exc  # pragma: no cover
     finally:
         yield from results
+
+
+def find_code_blocks(
+    content: str,
+    *,
+    path: str | os.PathLike[str] | None = None,
+    root_prefix: str | os.PathLike[str] | None = None,
+    extra_directives: Mapping[str, t.Type[Directive]] | None = None,
+    warn_unknown_block: t.Callable[[int | str, int, str], None] | None = None,
+) -> t.Generator[CodeBlockInfo]:
+    """
+    Given a RST document, finds all code blocks.
+
+    To add support for own types of code blocks, you can pass these
+    as ``extra_directives``. Use ``mark_antsibull_code_block()`` to
+    mark them to be found by ``find_code_blocks()``.
+    """
+    directives = get_code_block_directives(extra_directives=extra_directives)
+
+    doc = parse_document(
+        content,
+        parser_name="restructuredtext",
+        path=path,
+        root_prefix=root_prefix,
+        rst_directives=directives,
+    )
+
+    yield from find_code_blocks_in_document(
+        document=doc,
+        content=content,
+        warn_unknown_block=warn_unknown_block,
+    )
 
 
 __all__ = ("CodeBlockInfo", "mark_antsibull_code_block", "find_code_blocks")
