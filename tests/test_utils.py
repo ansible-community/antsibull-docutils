@@ -94,17 +94,25 @@ def test_ensure_newline_after_last_content(lines, expected):
 
 
 def test_parse_document():
+    def foo_role(role, rawtext, text, lineno, inliner, options=None, content=None):
+        return [nodes.Text("hohoho")], []
+
     document = parse_document(
         r"""
-foo `bar <asdf://bar>`__
+foo `bar <asdf://bar>`__ :foo:`bar`
 """,
         parser_name="restructuredtext",
+        rst_local_roles={"foo": foo_role},
     )
     assert len(document) == 1
     assert isinstance(document[0], nodes.paragraph)
-    assert len(document[0]) == 2
+    assert len(document[0]) == 4
     assert isinstance(document[0][0], nodes.Text)
     assert document[0][0] == "foo "
     assert isinstance(document[0][1], nodes.reference)
     assert document[0][1].astext() == "bar"
     assert document[0][1]["refuri"] == "asdf://bar"
+    assert isinstance(document[0][2], nodes.Text)
+    assert document[0][2] == " "
+    assert isinstance(document[0][3], nodes.Text)
+    assert document[0][3] == "hohoho"
