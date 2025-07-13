@@ -4,6 +4,26 @@ Antsibull docutils helpers Release Notes
 
 .. contents:: Topics
 
+v1.3.0
+======
+
+Release Summary
+---------------
+
+Feature and bugfix release.
+
+Minor Changes
+-------------
+
+- Add functionality to parse documents, and to search for code blocks in parsed documents. This allows to perform other operations on the parsed document, instead of having to parse it multiple times (https://github.com/ansible-community/antsibull-docutils/pull/14, https://github.com/ansible-community/antsibull-docutils/pull/16).
+- Allow to find all literal blocks without language (https://github.com/ansible-community/antsibull-docutils/pull/15).
+- Allow to pass ``content_offset`` to ``mark_antsibull_code_block()`` for more precise locating (https://github.com/ansible-community/antsibull-docutils/pull/16).
+
+Bugfixes
+--------
+
+- Fix code block first content line detection (https://github.com/ansible-community/antsibull-docutils/pull/16).
+
 v1.2.1
 ======
 

@@ -1,3 +1,0 @@
-minor_changes:
-  - "Allow to find all literal blocks without language
-     (https://github.com/ansible-community/antsibull-docutils/pull/15)."

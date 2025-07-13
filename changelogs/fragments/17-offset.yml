@@ -1,5 +1,0 @@
-bugfixes:
-  - "Fix code block first content line detection (https://github.com/ansible-community/antsibull-docutils/pull/16)."
-minor_changes:
-  - "Allow to pass ``content_offset`` to ``mark_antsibull_code_block()`` for more precise locating
-     (https://github.com/ansible-community/antsibull-docutils/pull/16)."
