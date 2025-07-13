@@ -140,8 +140,10 @@ def parse_document(
         )
     except SystemMessage as exc:
         raise ValueError(f"Cannot parse document: {exc}") from exc
-    except Exception as exc:
-        raise ValueError(f"Unexpected error while parsing document: {exc}") from exc
+    except Exception as exc:  # pragma: no cover
+        raise ValueError(
+            f"Unexpected error while parsing document: {exc}"
+        ) from exc  # pragma: no cover
 
 
 __all__ = (

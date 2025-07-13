@@ -11,11 +11,13 @@ Test utils module.
 from __future__ import annotations
 
 import pytest
+from docutils import nodes
 
 from antsibull_docutils.utils import (
     ensure_newline_after_last_content,
     get_document_structure,
     get_docutils_publish_settings,
+    parse_document,
 )
 
 
@@ -89,3 +91,20 @@ def test_ensure_newline_after_last_content(lines, expected):
     lines = lines.copy()
     ensure_newline_after_last_content(lines)
     assert lines == expected
+
+
+def test_parse_document():
+    document = parse_document(
+        r"""
+foo `bar <asdf://bar>`__
+""",
+        parser_name="restructuredtext",
+    )
+    assert len(document) == 1
+    assert isinstance(document[0], nodes.paragraph)
+    assert len(document[0]) == 2
+    assert isinstance(document[0][0], nodes.Text)
+    assert document[0][0] == "foo "
+    assert isinstance(document[0][1], nodes.reference)
+    assert document[0][1].astext() == "bar"
+    assert document[0][1]["refuri"] == "asdf://bar"

@@ -96,6 +96,89 @@ class CodeBlockDirective(Directive):
         return [literal]
 
 
+def _find_indent(content: str) -> int | None:
+    """
+    Given concatenated lines, find the minimum indent if possible.
+
+    If all lines consist only out of whitespace (or are empty),
+    ``None`` is returned.
+    """
+    min_indent = None
+    for line in content.split("\n"):
+        stripped_line = line.lstrip()
+        if stripped_line:
+            indent = len(line) - len(line.lstrip())
+            if min_indent is None or min_indent > indent:
+                min_indent = indent
+    return min_indent
+
+
+def _find_offset(
+    lineno: int, content: str, *, document_content_lines: list[str]
+) -> tuple[int, int, bool]:
+    """
+    Try to identify the row/col offset of the code in ``content`` in the document.
+
+    ``lineno`` is assumed to be the line where the code-block starts.
+    This function looks for an empty line, followed by the right pattern of
+    empty and non-empty lines.
+    """
+    row_offset = lineno
+    found_empty_line = False
+    found_content_lines = False
+    content_lines = content.count("\n") + 1
+    min_indent = None
+    for offset, line in enumerate(document_content_lines[lineno:]):
+        stripped_line = line.strip()
+        if not stripped_line:
+            if not found_empty_line:
+                row_offset = lineno + offset + 1
+                found_empty_line = True
+        elif not found_content_lines:
+            found_content_lines = True
+            row_offset = lineno + offset
+
+        if found_content_lines and content_lines > 0:
+            if stripped_line:
+                indent = len(line) - len(line.lstrip())
+                if min_indent is None or min_indent > indent:
+                    min_indent = indent
+            content_lines -= 1
+        elif not content_lines:
+            break
+
+    min_source_indent = _find_indent(content)
+    col_offset = max(0, (min_indent or 0) - (min_source_indent or 0))
+    return row_offset, col_offset, content_lines == 0
+
+
+def _find_in_code(
+    row_offset: int,
+    col_offset: int,
+    content: str,
+    *,
+    document_content_lines: list[str],
+) -> bool:
+    """
+    Check whether the code can be found at the given row/col offset in a way
+    that makes it easy to replace.
+
+    That is, it is surrounded only by whitespace.
+    """
+    for index, line in enumerate(content.split("\n")):
+        if row_offset + index >= len(document_content_lines):
+            return False
+        found_line = document_content_lines[row_offset + index]
+        if found_line[:col_offset].strip():
+            return False
+        eol = found_line[col_offset:]
+        if eol[: len(line)] != line:
+            return False
+        if eol[len(line) :].strip():
+            return False
+    return True
+
+
 class CodeBlockVisitor(nodes.SparseNodeVisitor):
     """
     Visitor that calls callbacks for all code blocks.
@@ -127,100 +210,31 @@ class CodeBlockVisitor(nodes.SparseNodeVisitor):
         """
         raise nodes.SkipNode
 
-    @staticmethod
-    def _find_indent(content: str) -> int | None:
-        """
-        Given concatenated lines, find the minimum indent if possible.
-
-        If all lines consist only out of whitespace (or are empty),
-        ``None`` is returned.
-        """
-        min_indent = None
-        for line in content.split("\n"):
-            stripped_line = line.lstrip()
-            if stripped_line:
-                indent = len(line) - len(line.lstrip())
-                if min_indent is None or min_indent > indent:
-                    min_indent = indent
-        return min_indent
-
-    def _find_offset(self, lineno: int, content: str) -> tuple[int, int, bool]:
-        """
-        Try to identify the row/col offset of the code in ``content`` in the document.
-
-        ``lineno`` is assumed to be the line where the code-block starts.
-        This function looks for an empty line, followed by the right pattern of
-        empty and non-empty lines.
-        """
-        row_offset = lineno
-        found_empty_line = False
-        found_content_lines = False
-        content_lines = content.count("\n") + 1
-        min_indent = None
-        for offset, line in enumerate(self.__content_lines[lineno:]):
-            stripped_line = line.strip()
-            if not stripped_line:
-                if not found_empty_line:
-                    row_offset = lineno + offset + 1
-                    found_empty_line = True
-            elif not found_content_lines:
-                found_content_lines = True
-                row_offset = lineno + offset
-
-            if found_content_lines and content_lines > 0:
-                if stripped_line:
-                    indent = len(line) - len(line.lstrip())
-                    if min_indent is None or min_indent > indent:
-                        min_indent = indent
-                content_lines -= 1
-            elif not content_lines:
-                break
-
-        min_source_indent = self._find_indent(content)
-        col_offset = max(0, (min_indent or 0) - (min_source_indent or 0))
-        return row_offset, col_offset, content_lines == 0
-
-    def _find_in_code(self, row_offset: int, col_offset: int, content: str) -> bool:
-        """
-        Check whether the code can be found at the given row/col offset in a way
-        that makes it easy to replace.
-
-        That is, it is surrounded only by whitespace.
-        """
-        for index, line in enumerate(content.split("\n")):
-            if row_offset + index >= len(self.__content_lines):
-                return False
-            found_line = self.__content_lines[row_offset + index]
-            if found_line[:col_offset].strip():
-                return False
-            eol = found_line[col_offset:]
-            if eol[: len(line)] != line:
-                return False
-            if eol[len(line) :].strip():
-                return False
-        return True
-
     def visit_literal_block(self, node: nodes.literal_block) -> None:
         """
         Visit a code block.
         """
         if "antsibull-code-block" not in node.attributes:
-            if node.attributes["classes"]:
-                # This could be a `::` block, or something else (unknown)
-                self.__warn_unknown_block(node.line or "unknown", 0, node)
+            # This could be a `::` block, or something else (unknown)
+            self.__warn_unknown_block(node.line or "unknown", 0, node)
             raise nodes.SkipNode
 
         language = node.attributes["antsibull-code-language"]
         lineno = node.attributes["antsibull-code-lineno"]
-        row_offset, col_offset, position_exact = self._find_offset(
-            lineno, node.rawsource
+        row_offset, col_offset, position_exact = _find_offset(
+            lineno, node.rawsource, document_content_lines=self.__content_lines
         )
         found_in_code = False
         if position_exact:
             # If we think we have the exact position, try to identify the code.
             # ``found_in_code`` indicates that it is easy to replace the code,
             # and at the same time it's easy to identify it.
-            found_in_code = self._find_in_code(row_offset, col_offset, node.rawsource)
+            found_in_code = _find_in_code(
+                row_offset,
+                col_offset,
+                node.rawsource,
+                document_content_lines=self.__content_lines,
+            )
             if not found_in_code:
                 position_exact = False
         if not found_in_code:
@@ -351,8 +365,8 @@ def find_code_blocks_in_document(
     try:
         visitor = CodeBlockVisitor(document, content, callback, warn_unknown_block_cb)
         document.walk(visitor)
-    except Exception as exc:
-        raise ValueError(f"Cannot process document: {exc}") from exc
+    except Exception as exc:  # pragma: no cover
+        raise ValueError(f"Cannot process document: {exc}") from exc  # pragma: no cover
     finally:
         yield from results
 
