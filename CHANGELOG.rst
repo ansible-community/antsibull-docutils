@@ -4,6 +4,19 @@ Antsibull docutils helpers Release Notes
 
 .. contents:: Topics
 
+v1.3.1
+======
+
+Release Summary
+---------------
+
+Maintenance release.
+
+Minor Changes
+-------------
+
+- Declare support for Python 3.14 (https://github.com/ansible-community/antsibull-docutils/pull/19).
+
 v1.3.0
 ======
 
