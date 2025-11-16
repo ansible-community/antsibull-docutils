@@ -12,7 +12,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 A Python library with some [docutils](https://www.docutils.org/) helpers used by Antsibull tools.
 
-antsibull-docutils is covered by the [Ansible Code of Conduct](https://docs.ansible.com/ansible/latest/community/code_of_conduct.html).
+antsibull-docutils is covered by the [Ansible Code of Conduct](https://docs.ansible.com/projects/ansible/latest/community/code_of_conduct.html).
 
 ## Docutils support
 
