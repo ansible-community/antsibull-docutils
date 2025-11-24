@@ -69,7 +69,7 @@ jobs:
     name: "Run nox ${{ matrix.session }} session (docutils ${{ matrix.docutils_version || 'latest'}})"
     steps:
       - name: Check out antsibull-docutils
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: antsibull-docutils
           persist-credentials: false
@@ -83,7 +83,7 @@ jobs:
           sed -i -e 's/"docutils"/"docutils == ${{ matrix.docutils_version }}"/g' pyproject.toml
         working-directory: antsibull-docutils
       - name: Setup nox
-        uses: wntrblm/nox@2025.10.16
+        uses: wntrblm/nox@2025.11.12
         with:
           python-versions: "${{ matrix.python-versions }}"
       - name: Run nox
