@@ -4,6 +4,19 @@ Antsibull docutils helpers Release Notes
 
 .. contents:: Topics
 
+v1.4.0
+======
+
+Release Summary
+---------------
+
+Feature release.
+
+Minor Changes
+-------------
+
+- Improve code block finder. It can now also find code blocks in grid and simple tables (https://github.com/ansible-community/antsibull-docutils/pull/23).
+
 v1.3.1
 ======
 
