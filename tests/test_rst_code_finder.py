@@ -354,23 +354,17 @@ def test__find_col_offset() -> None:
       bar       bar bar  bar foo
                                bar
     baz       baz baz  baz
-""".lstrip(
-        "\n"
-    ).splitlines()
+""".lstrip("\n").splitlines()
     content = """
 foo
   bar
 
 baz
-""".lstrip(
-        "\n"
-    )
+""".lstrip("\n")
     content_2 = """
 foo
   bar
-""".lstrip(
-        "\n"
-    )
+""".lstrip("\n")
 
     assert _find_col_offset(
         0, content, document_content_lines=document_content_lines
