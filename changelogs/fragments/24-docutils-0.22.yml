@@ -1,0 +1,2 @@
+bugfixes:
+  - "Address a deprecation introduced in docutils 0.22 (https://github.com/ansible-community/antsibull-docutils/pull/24)."
