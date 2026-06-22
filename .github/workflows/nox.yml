@@ -76,7 +76,7 @@ jobs:
     name: "Run nox ${{ matrix.session }} session (docutils ${{ matrix.docutils_version || 'latest'}})"
     steps:
       - name: Check out antsibull-docutils
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: antsibull-docutils
           persist-credentials: false
