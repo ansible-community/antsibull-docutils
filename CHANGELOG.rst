@@ -4,6 +4,19 @@ Antsibull docutils helpers Release Notes
 
 .. contents:: Topics
 
+v1.4.1
+======
+
+Release Summary
+---------------
+
+Maintenance release.
+
+Bugfixes
+--------
+
+- Address a deprecation introduced in docutils 0.22 (https://github.com/ansible-community/antsibull-docutils/pull/24).
+
 v1.4.0
 ======
 
