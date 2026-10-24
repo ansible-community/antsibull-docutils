@@ -17,10 +17,14 @@ name: nox
 
 env:
   FORCE_COLOR: "1"
+  OTHER_ANTSIBULL_MODE: local
+
+permissions:
+  contents: read
 
 jobs:
   nox:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.image || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +35,7 @@ jobs:
             codecov: true
             packages: ""
             docutils_version: ""
+            image: ""
 
           - session: test
             python-versions: "3.9, 3.10, 3.11, 3.12, 3.13, 3.14"
@@ -38,6 +43,7 @@ jobs:
             codecov: true
             packages: ""
             docutils_version: "0.22.4"
+            image: ""
 
           - session: test
             python-versions: "3.9, 3.10, 3.11, 3.12, 3.13, 3.14"
@@ -45,6 +51,7 @@ jobs:
             codecov: true
             packages: ""
             docutils_version: "0.21.2"
+            image: ""
 
           - session: test
             python-versions: "3.9, 3.10, 3.11, 3.12, 3.13, 3.14"
@@ -52,6 +59,7 @@ jobs:
             codecov: true
             packages: ""
             docutils_version: "0.20.1"
+            image: ""
 
           - session: test
             python-versions: "3.9, 3.10, 3.11, 3.12, 3.13, 3.14"
@@ -59,6 +67,7 @@ jobs:
             codecov: true
             packages: ""
             docutils_version: "0.19"
+            image: ""
 
           - session: test
             python-versions: "3.9, 3.10, 3.11, 3.12, 3.13, 3.14"
@@ -66,6 +75,7 @@ jobs:
             codecov: true
             packages: ""
             docutils_version: "0.18.1"
+            image: ""
 
           - session: lint
             python-versions: "3.14"
@@ -73,6 +83,7 @@ jobs:
             codecov: false
             packages: ""
             docutils_version: ""
+            image: ""
     name: "Run nox ${{ matrix.session }} session (docutils ${{ matrix.docutils_version || 'latest'}})"
     steps:
       - name: Check out antsibull-docutils
