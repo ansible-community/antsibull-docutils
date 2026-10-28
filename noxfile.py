@@ -84,7 +84,7 @@ def formatters(session: nox.Session):
 @nox.session
 def codeqa(session: nox.Session):
     install(session, ".[codeqa]", editable=True)
-    session.run("flake8", "src/antsibull_docutils", *session.posargs)
+    session.run("flake8", "src/antsibull_docutils", "tests", *session.posargs)
     session.run(
         "pylint",
         "--rcfile",
@@ -100,7 +100,7 @@ def codeqa(session: nox.Session):
 @nox.session
 def typing(session: nox.Session):
     install(session, ".[typing]")
-    session.run("mypy", "src/antsibull_docutils")
+    session.run("mypy", "src/antsibull_docutils", "tests")
 
 
 def check_no_modifications(session: nox.Session) -> None:
