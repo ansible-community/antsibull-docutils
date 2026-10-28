@@ -10,3 +10,8 @@ max-line-length = 100
 statistics = True
 # These rules conflict with black
 ignore = E203, W503
+
+# Line in multi-line string is too long, or contains trailing whitespace:
+per-file-ignores =
+    tests/test_markdown.py:E501
+    tests/test_rst_code_finder.py:E501,W291,W293

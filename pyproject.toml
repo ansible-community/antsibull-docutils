@@ -89,8 +89,14 @@ profile = "black"
 [tool.coverage.paths]
 source = [
     "src",
-   "*/site-packages",
+    "*/site-packages",
 ]
 
 [tool.mypy]
 mypy_path = "stubs/"
+
+[[tool.mypy.overrides]]
+module = [
+    "pytest",
+]
+ignore_missing_imports = true
