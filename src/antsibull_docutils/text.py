@@ -152,12 +152,14 @@ class IndentContext(Context):
         state: _State,
         string_proc: _StringProcessor,
         at_least_one_line: bool = False,
+        ignore_newlines: bool = True,
     ):
         indent_columns = string_proc.get_column_count(text=first_indent)
         super().__init__(
             remaining_width=remaining_width - indent_columns,
             state=state,
             string_proc=string_proc,
+            ignore_newlines=ignore_newlines,
         )
         self.first_indent = first_indent
         self.next_indent = " " * indent_columns if next_indent is None else next_indent
@@ -569,18 +571,13 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     # pylint: disable-next=missing-function-docstring,unused-argument
     def visit_literal_block(self, node: nodes.literal_block) -> None:
         self._context.top.main.new_par()
-
-        class LiteralContext(Context):
-            """
-            Context for a literal block.
-            """
-
         self._context.push_context(
-            LiteralContext(
+            IndentContext(
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
                 ignore_newlines=False,
+                first_indent="  ",
             )
         )
 

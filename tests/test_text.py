@@ -99,8 +99,8 @@ torquent per conubia nostra inceptos himenaeos.
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
 incididunt ut labore et dolore magna aliqua:
 
-Ut enim ad minim veniam, quis nostrud exercitation
-  ullamco laboris nisi ut aliquip ex ea commodo consequat.
+  Ut enim ad minim veniam, quis nostrud exercitation
+    ullamco laboris nisi ut aliquip ex ea commodo consequat.
 
 - Lorem ipsum dolor sit \x1b[0;3mamet consectetur\x1b[0m adipiscing elit. Quisque faucibus ex
   sapien vitae pellentesque sem placerat. \x1b[0;1mIn id cursus\x1b[0m mi pretium tellus duis
@@ -173,7 +173,7 @@ An enumeration:
 
    it has two lines.
 
-   And some code.
+     And some code.
 2. another one
 3.
 4. a last one""",
@@ -254,21 +254,21 @@ A test document.
 
 This is a test section. It has a label.
 
-Code without language
+  Code without language
 
 Another code block:
 
-````
-This one has no language, either.
-````
+  ````
+  This one has no language, either.
+  ````
 
 \x1b[0;1mTest subsection\x1b[0m
 \x1b[0;1m───────────────\x1b[0m
 
 Linking the label.
 
-def f():
-    return 42
+  def f():
+      return 42
 
 \x1b[0;1mAnother section\x1b[0m
 \x1b[0;1m━━━━━━━━━━━━━━━\x1b[0m
@@ -475,10 +475,10 @@ An enumeration:
 
      1. Subenum
 
-        Some codeblock:
-        ```python
-        def main(argv): ...
-        ```
+          Some codeblock:
+          ```python
+          def main(argv): ...
+          ```
      2. Another entry
 
 \x1b[0;1m2\xa0\xa0\xa0Another subtitle\x1b[0m
@@ -486,9 +486,9 @@ An enumeration:
 
 Some code:
 
-def main(argv):
-    if argv[1] == \'help\':
-        print(\'Help!\')
+  def main(argv):
+      if argv[1] == 'help':
+          print('Help!')
 
 !⃝ Some note.
 
@@ -513,8 +513,8 @@ Some text...
 
 Some unformatted code:
 
-foo bar!
-baz bam.
+  foo bar!
+  baz bam.
 
 \x1b[0;1m2.2\xa0\xa0\xa0A sub-sub-title\x1b[0m
 \x1b[0;1m─────────────────────\x1b[0m
@@ -547,9 +547,9 @@ Some text.
 
   Unknown directive type "unknown-shit".
 
-  .. unknown-shit::
+    .. unknown-shit::
 
-    Something.""",
+      Something.""",
         set(),
     ),
     (
