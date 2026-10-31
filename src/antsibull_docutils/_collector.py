@@ -338,11 +338,12 @@ class Collector:  # pylint: disable=too-many-instance-attributes
         self.insert_paragraph = False
         self.current_state = self.state.get_state()
 
-    def _flush_line(self) -> None:
-        if self.parts:
+    def _flush_line(self, *, force: bool = False) -> None:
+        if self.parts or force:
             if self.insert_paragraph and self.lines:
                 self.lines.append("")
-            self.parts.append(self.state.get_end_of_line(self.current_state))
+            if self.parts:
+                self.parts.append(self.state.get_end_of_line(self.current_state))
             self.lines.append("".join(self.parts))
             self.parts.clear()
             self.insert_paragraph = False
@@ -385,10 +386,11 @@ class Collector:  # pylint: disable=too-many-instance-attributes
             if first:
                 first = False
             elif self.ignore_newlines:
-                self.space += " "
-                self.space_columns += 1
+                if not self.space.endswith(" "):
+                    self.space += " "
+                    self.space_columns += 1
             else:
-                self._flush_line()
+                self.new_line(force=True)
             self._append(part)
 
     def update_state(self) -> None:
@@ -411,6 +413,15 @@ class Collector:  # pylint: disable=too-many-instance-attributes
         )
         if change:
             self.parts.append(change)
+
+    def new_line(self, *, force: bool = False) -> None:
+        """
+        Start a new line.
+
+        If ``force`` is set to ``True``, this will also start a new line
+        if the current one is empty.
+        """
+        self._flush_line(force=force)
 
     def new_par(self) -> None:
         """

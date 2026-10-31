@@ -26,10 +26,15 @@ from antsibull_docutils._string import ASCIIStringProcessor
 if t.TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
 
-    InputElt = str | None | tuple[Formatting, t.Literal["push", "pop", "clear"]]
+    InputElt = (
+        str
+        | None
+        | tuple[Formatting, t.Literal["push", "pop", "clear"]]
+        | tuple[t.Literal["new-par", "new-line", "new-line-force"]]
+    )
 
 
-def process_input(
+def process_input(  # noqa: C901
     input: Sequence[InputElt],
     state: State,
     collector: Collector,
@@ -39,6 +44,13 @@ def process_input(
             collector.new_par()
         elif isinstance(part, str):
             collector.append(text=part)
+        elif len(part) == 1:
+            if part[0] == "new-par":
+                collector.new_par()
+            if part[0] == "new-line":
+                collector.new_line()
+            if part[0] == "new-line-force":
+                collector.new_line(force=True)
         else:
             formatting, op = part
             if op == "push":
@@ -101,6 +113,46 @@ TEST_EMPTYSTATE_COLLECTOR_DATA: list[tuple[list[InputElt], int, bool, list[str]]
         False,
         ["Hello", "world!", "This is a", "text.", "", "bazbamfoo", "Foobarbazb", "am"],
     ),
+    (
+        [
+            ("new-line",),
+            ("new-line",),
+            ("new-par",),
+            ("new-line",),
+            "x",
+        ],
+        10,
+        False,
+        ["x"],
+    ),
+    (
+        [
+            ("new-line",),
+            "a",
+            ("new-line",),
+            "b",
+            ("new-par",),
+            "c",
+            ("new-line",),
+            ("new-par",),
+            ("new-line",),
+            ("new-par",),
+            "d",
+            ("new-line",),
+            ("new-line-force",),
+            "e",
+            ("new-line-force",),
+            ("new-par",),
+            "f",
+            ("new-line-force",),
+            ("new-line-force",),
+            ("new-line-force",),
+            "g",
+        ],
+        10,
+        False,
+        ["a", "b", "", "c", "", "d", "", "e", "", "f", "", "", "g"],
+    ),
 ]
 
 
@@ -125,6 +177,8 @@ def test_EmptyState_Collector(
     )
     process_input(input, state, collector)
     lines = collector.close()
+    for line in lines:
+        print(line)
     assert lines == expected_lines
 
 
@@ -208,13 +262,13 @@ TEST_ANSISTATE_COLLECTOR_DATA: list[tuple[list[InputElt], int, bool, list[str]]]
         ["foo    bar"],
     ),
     (
-        ["foo\nbar baz\nbam!"],
+        ["foo\nbar baz\n\nbam!"],
         10,
         False,
-        ["foo", "bar baz", "bam!"],
+        ["foo", "bar baz", "", "bam!"],
     ),
     (
-        ["foo\nbar baz\nbam!"],
+        ["foo\nbar baz\n\nbam!"],
         10,
         True,
         ["foo bar", "baz bam!"],
