@@ -174,8 +174,9 @@ An enumeration:
    it has two lines.
 
    And some code.
-1. another one
-1. a last one""",
+2. another one
+3.
+4. a last one""",
         set(),
     ),
     (
@@ -458,6 +459,7 @@ A list:
 
   This is still item 2.
 - Item 3.
+-
 - Item 5 after an empty item.
 
 An enumeration:
@@ -465,8 +467,8 @@ An enumeration:
 1. Entry 1
 
    More of Entry 1
-1. Entry 2
-1. Entry 3 Second line of entry 3
+2. Entry 2
+3. Entry 3 Second line of entry 3
 
    - Sublist
    - Another entry
@@ -477,7 +479,7 @@ An enumeration:
         ```python
         def main(argv): ...
         ```
-     1. Another entry
+     2. Another entry
 
 \x1b[0;1m2\xa0\xa0\xa0Another subtitle\x1b[0m
 \x1b[0;1m━━━━━━━━━━━━━━━━━━━━\x1b[0m

@@ -10,6 +10,7 @@ Code for conversion to (formatted) plain text.
 
 from __future__ import annotations
 
+import abc
 import io
 import math
 import typing as t
@@ -150,6 +151,7 @@ class IndentContext(Context):
         remaining_width: int,
         state: _State,
         string_proc: _StringProcessor,
+        at_least_one_line: bool = False,
     ):
         indent_columns = string_proc.get_column_count(text=first_indent)
         super().__init__(
@@ -159,6 +161,7 @@ class IndentContext(Context):
         )
         self.first_indent = first_indent
         self.next_indent = " " * indent_columns if next_indent is None else next_indent
+        self.at_least_one_line = at_least_one_line
 
     def close(self) -> None:
         super().close()
@@ -168,6 +171,78 @@ class IndentContext(Context):
             first_indent=self.first_indent,
             next_indent=self.next_indent,
         )
+        if self.at_least_one_line and not self._result_main:
+            self._result_main.append(self.first_indent.rstrip())
+
+
+class _Enumerator(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def get_maximal_length(self) -> int:
+        """
+        Return the maximum indentation length.
+        """
+
+    @abc.abstractmethod
+    def get_next_first_indent(self) -> str:
+        """
+        Generates a new first indent.
+        Must be called exactly as many times as defined.
+        """
+
+
+class _ConstEnumerator(_Enumerator):
+    def __init__(self, *, prefix: str, string_proc: _StringProcessor) -> None:
+        self.prefix = prefix
+        self.string_proc = string_proc
+
+    def get_maximal_length(self) -> int:
+        """
+        Return the maximum indentation length.
+        """
+        return self.string_proc.get_column_count(text=self.prefix)
+
+    def get_next_first_indent(self) -> str:
+        """
+        Generates a new first indent.
+        Must be called exactly as many times as defined.
+        """
+        return self.prefix
+
+
+def _arabic(index: int) -> str:
+    return f"{index + 1}. "
+
+
+class _VariableEnumerator(_Enumerator):
+    def __init__(
+        self,
+        *,
+        generator: t.Callable[[int], str],
+        count: int,
+        string_proc: _StringProcessor,
+    ) -> None:
+        self.index = 0
+        self.prefixes = [generator(i) for i in range(count)]
+        self.max_length = (
+            max(string_proc.get_column_count(text=elt) for elt in self.prefixes)
+            if self.prefixes
+            else 0
+        )
+
+    def get_maximal_length(self) -> int:
+        """
+        Return the maximum indentation length.
+        """
+        return self.max_length
+
+    def get_next_first_indent(self) -> str:
+        """
+        Generates a new first indent.
+        Must be called exactly as many times as defined.
+        """
+        index = self.index
+        self.index += 1
+        return self.prefixes[index]
 
 
 class ListContext(Context):
@@ -178,18 +253,35 @@ class ListContext(Context):
     def __init__(
         self,
         *,
-        indent: str,
+        enumerator: _Enumerator,
         remaining_width: int,
         state: _State,
         string_proc: _StringProcessor,
     ):
+        max_length = enumerator.get_maximal_length()
         super().__init__(
-            remaining_width=remaining_width - string_proc.get_column_count(text=indent),
+            remaining_width=remaining_width - max_length,
             state=state,
             string_proc=string_proc,
         )
-        self.first_indent = indent
-        self.next_indent = " " * len(indent)
+        self.enumerator = enumerator
+        self.max_length = max_length
+
+    def get_next_item_indents(self) -> tuple[str, str]:
+        """
+        Retrieve the ``(first_indent, next_indent)`` pair for the next list item.
+        """
+        first_indent = self.enumerator.get_next_first_indent()
+        indent_length = self.string_proc.get_column_count(text=first_indent)
+        if indent_length > self.max_length:
+            raise RuntimeError(
+                f"Expected a maximum indent column count of {self.max_length},"
+                f" but got {first_indent!r} of column count {indent_length}"
+            )
+        return (
+            first_indent + " " * (self.max_length - indent_length),
+            " " * self.max_length,
+        )
 
 
 class DocumentContext(_DocumentContextBase[GlobalContext, Context]):
@@ -416,7 +508,9 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
         self._context.top.main.new_par()
         self._context.push_context(
             ListContext(
-                indent="- ",
+                enumerator=_ConstEnumerator(
+                    prefix="- ", string_proc=self._context.top.string_proc
+                ),
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
@@ -429,12 +523,16 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
 
     # Node: enumerated_list
 
-    # pylint: disable-next=missing-function-docstring,unused-argument
+    # pylint: disable-next=missing-function-docstring
     def visit_enumerated_list(self, node: nodes.enumerated_list) -> None:
         self._context.top.main.new_par()
         self._context.push_context(
             ListContext(
-                indent="1. ",
+                enumerator=_VariableEnumerator(
+                    generator=_arabic,
+                    count=len(node),
+                    string_proc=self._context.top.string_proc,
+                ),
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
@@ -450,13 +548,15 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     # pylint: disable-next=missing-function-docstring,unused-argument
     def visit_list_item(self, node: nodes.list_item) -> None:
         list_context = t.cast(ListContext, self._context.top)
+        first_indent, next_indent = list_context.get_next_item_indents()
         self._context.push_context(
             IndentContext(
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
-                first_indent=list_context.first_indent,
-                next_indent=list_context.next_indent,
+                first_indent=first_indent,
+                next_indent=next_indent,
+                at_least_one_line=True,
             )
         )
 
@@ -548,6 +648,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
                 first_indent="!\u20dd ",
+                at_least_one_line=True,
             )
         )
 
