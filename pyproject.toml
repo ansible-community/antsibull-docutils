@@ -37,6 +37,7 @@ classifiers = [
 ]
 dependencies = [
     "docutils",
+    "graphemeu >= 0.8.0; python_version < '3.15'",
 ]
 
 [project.urls]
@@ -98,6 +99,7 @@ mypy_path = "stubs/"
 
 [[tool.mypy.overrides]]
 module = [
+    "grapheme",
     "pytest",
 ]
 ignore_missing_imports = true

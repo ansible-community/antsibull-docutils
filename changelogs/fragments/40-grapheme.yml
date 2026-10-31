@@ -1,0 +1,2 @@
+minor_changes:
+  - "On Python < 3.15, antsibull-docutils now depends on the `graphemeu library <https://pypi.org/project/graphemeu/>`_ (https://github.com/ansible-community/antsibull-docutils/pull/40)."
