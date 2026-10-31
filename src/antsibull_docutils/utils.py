@@ -39,6 +39,7 @@ SupportedParser = t.Union[t.Literal["restructuredtext"], t.Literal["markdown"]]
 
 
 _PARSER_NAME_ARG = "parser" if __version_info__ >= (0, 22) else "parser_name"
+_AVOID_SET_COMPONENTS = __version_info__ >= (0, 22)
 
 _DOCUTILS_PUBLISH_SETTINGS = {
     "input_encoding": "unicode",
@@ -142,10 +143,18 @@ def parse_document(
     # Doing this more explicit is a bad idea since the classes used are deprecated and will
     # eventually get replaced. Publisher.get_settings() looks like a stable enough API that
     # we can 'just use'.
-    publisher = Publisher(source_class=StringInput)
     reader_name = "standalone"
     writer_name = "pseudoxml"  # doesn't matter, since we just need the parsed document
-    publisher.set_components(reader_name, parser_name, writer_name)
+    publisher_args: dict[str, t.Any] = {
+        "source_class": StringInput,
+    }
+    if _AVOID_SET_COMPONENTS:
+        publisher_args["reader"] = reader_name
+        publisher_args["parser"] = parser_name
+        publisher_args["writer"] = writer_name
+    publisher = Publisher(**publisher_args)
+    if not _AVOID_SET_COMPONENTS:
+        publisher.set_components(reader_name, parser_name, writer_name)
     override = get_docutils_publish_settings(warnings_stream=io.StringIO())
     override.update(
         {

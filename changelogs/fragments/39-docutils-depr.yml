@@ -1,0 +1,2 @@
+bugfixes:
+  - "Avoid function deprecated in docutils 0.22 (https://github.com/ansible-community/antsibull-docutils/pull/39)."
