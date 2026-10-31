@@ -19,6 +19,10 @@ from docutils.core import publish_parts
 from docutils.writers.html5_polyglot import HTMLTranslator
 from docutils.writers.html5_polyglot import Writer as HTMLWriter
 
+from ._utils import ContextBase as _ContextBase
+from ._utils import DocumentContextBase as _DocumentContextBase
+from ._utils import add_skip as _add_skip
+from ._utils import add_unsupported_classes as _add_unsupported_classes
 from .html_utils import html_argument_escape, html_escape
 from .md_utils import md_escape
 from .utils import (
@@ -70,7 +74,7 @@ class GlobalContext:
         return full_fragment
 
 
-class Context:
+class Context(_ContextBase["Context"]):
     """
     Base context class for MarkDown conversion.
     """
@@ -196,71 +200,17 @@ def count_leading_backticks(line: str) -> int:
     return count
 
 
-class DocumentContext:
+class DocumentContext(_DocumentContextBase[GlobalContext, Context]):
     """
     Conversion context for a document.
     """
 
-    section_depth: int
-    global_context: GlobalContext
-    unknown_node_types: set[str]
-    created_labels: set[str]
-
-    _contexts: list[Context]
-
-    def __init__(self, global_context: GlobalContext):
-        self.section_depth = 0
-        self.global_context = global_context
-        self.unknown_node_types = set()
-        self.created_labels = set()
+    def __init__(self, global_context: GlobalContext) -> None:
+        super().__init__(global_context)
         self._contexts = [Context(has_top=True)]
-
-    def push_context(self, context: Context) -> None:
-        """
-        Add a new context on the context stack.
-        """
-        self._contexts.append(context)
-
-    def pop_context(self) -> None:
-        """
-        Pop the top-most context from the context stack.
-
-        The last context cannot be popped, trying to do so will result in a
-        ``ValueError`` exception.
-        """
-        if len(self._contexts) < 2:
-            raise ValueError("Cannot pop last element")
-        context = self._contexts.pop()
-        context.close()
-        self._contexts[-1].append(context)
-
-    @property
-    def top(self) -> Context:
-        """
-        Return the top-most context from the context stack.
-        """
-        return self._contexts[-1]
 
 
 _Class = t.TypeVar("_Class")
-
-
-def _add_unsupported_classes(clazz: _Class) -> _Class:
-    def get_visit(class_name: str):
-        # pylint: disable-next=unused-argument
-        def visit_unsupported(self: t.Any, node: nodes.Node):
-            # pylint: disable-next=protected-access
-            self._context.unknown_node_types.add(class_name)
-            raise nodes.SkipNode
-
-        return visit_unsupported
-
-    for class_name in nodes.node_class_names:
-        function_name = f"visit_{class_name}"
-        if not hasattr(clazz, function_name):
-            setattr(clazz, function_name, get_visit(class_name))
-
-    return clazz
 
 
 def _add_simple(
@@ -288,18 +238,6 @@ def _add_simple(
         for class_name, (start, end) in definitions.items():
             setattr(clazz, f"visit_{class_name}", get_visit(start))
             setattr(clazz, f"depart_{class_name}", get_depart(end))
-        return clazz
-
-    return decorator
-
-
-def _add_skip(class_names: list[str]) -> t.Callable[[_Class], _Class]:
-    def decorator(clazz: _Class) -> _Class:
-        def visit(self: t.Any, node: nodes.Node) -> None:
-            raise nodes.SkipNode
-
-        for class_name in class_names:
-            setattr(clazz, f"visit_{class_name}", visit)
         return clazz
 
     return decorator
