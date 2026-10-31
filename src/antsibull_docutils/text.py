@@ -41,7 +41,7 @@ class GlobalContext:  # pylint: disable=too-few-public-methods
     The global conversion context.
     """
 
-    title_headings: str = """=-~^.*+:`'"_#"""
+    title_headings: str = """═━─┉┅┈┄-~.+`'"_"""
     column_width: int = 80
     use_ansi_formatting: bool = True
 
@@ -58,6 +58,7 @@ class Context(_ContextBase["Context"]):  # pylint: disable=too-many-instance-att
         state: _State,
         string_proc: _StringProcessor,
         has_top: bool = False,
+        ignore_newlines: bool = True,
     ) -> None:
         self.remaining_width = remaining_width
         self.top_state = state.clone()
@@ -68,13 +69,13 @@ class Context(_ContextBase["Context"]):  # pylint: disable=too-many-instance-att
             width=self.remaining_width,
             state=self.top_state,
             string_proc=self.string_proc,
-            ignore_newlines=True,
+            ignore_newlines=ignore_newlines,
         )
         self._main = _Collector(
             width=self.remaining_width,
             state=self.state,
             string_proc=self.string_proc,
-            ignore_newlines=True,
+            ignore_newlines=ignore_newlines,
         )
         self._result_top: list[str] | None = None
         self._result_main: list[str] | None = None
@@ -337,7 +338,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
             self._context.top.top.update_state()
             self._context.top.top.append(text=title)
             self._context.top.top.new_line()
-            self._context.top.main.append(text=underline)
+            self._context.top.top.append(text=underline)
             self._context.top.top_state.push_formatting(_Formatting.BOLD)
             self._context.top.top.update_state()
             self._context.top.top.new_line()
@@ -348,11 +349,11 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
             self._context.top.state.push_formatting(_Formatting.BOLD)
             self._context.top.main.update_state()
             self._context.top.main.append(text=title)
-            self._context.top.top.new_line()
+            self._context.top.main.new_line()
             self._context.top.main.append(text=underline)
             self._context.top.state.pop_formatting(_Formatting.BOLD)
             self._context.top.main.update_state()
-            self._context.top.top.new_par()
+            self._context.top.main.new_par()
         raise nodes.SkipNode
 
     # Node: section
@@ -479,6 +480,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
+                ignore_newlines=False,
             )
         )
 
@@ -520,10 +522,19 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
         )
         self._context.top.state.pop_formatting(_Formatting.BOLD)
         self._context.top.main.update_state()
-        self._context.top.main.new_line()
+        self._context.top.main.new_par()
+        self._context.push_context(
+            IndentContext(
+                first_indent="  ",
+                remaining_width=self._context.top.remaining_width,
+                state=self._context.top.state,
+                string_proc=self._context.top.string_proc,
+            )
+        )
 
     # pylint: disable-next=missing-function-docstring,unused-argument
     def depart_system_message(self, node: nodes.system_message) -> None:
+        self._context.pop_context()
         self._context.top.main.new_par()
 
     # Node: note

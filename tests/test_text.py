@@ -99,8 +99,8 @@ torquent per conubia nostra inceptos himenaeos.
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
 incididunt ut labore et dolore magna aliqua:
 
-Ut enim ad minim veniam, quis nostrud exercitation   ullamco laboris nisi ut
-aliquip ex ea commodo consequat.
+Ut enim ad minim veniam, quis nostrud exercitation
+  ullamco laboris nisi ut aliquip ex ea commodo consequat.
 
 - Lorem ipsum dolor sit \x1b[0;3mamet consectetur\x1b[0m adipiscing elit. Quisque faucibus ex
   sapien vitae pellentesque sem placerat. \x1b[0;1mIn id cursus\x1b[0m mi pretium tellus duis
@@ -125,6 +125,493 @@ aliquip ex ea commodo consequat.
           Quisque faucibus ex sapien vitae pellentesque sem placerat.
           In id cursus mi pretium tellus duis convallis.""",
         set(),
+    ),
+    (
+        "list",
+        r"""
+A list:
+
+* an :emphasis:`entry`
+* another :strong:`one`
+
+  + a nested list entry
+  + another one
+""",
+        "restructuredtext",
+        """A list:
+
+- an \x1b[0;3mentry\x1b[0m
+- another \x1b[0;1mone\x1b[0m
+
+  - a nested list entry
+  - another one""",
+        set(),
+    ),
+    (
+        "enumeration",
+        r"""
+An enumeration:
+
+1. an :literal:`entry`
+
+   it has two lines.
+
+   .. code-block::
+
+       And some code.
+
+2. another one
+
+3.
+
+4. a last one
+""",
+        "restructuredtext",
+        """An enumeration:
+
+1. an `entry`
+
+   it has two lines.
+
+   And some code.
+1. another one
+1. a last one""",
+        set(),
+    ),
+    (
+        "test-doc",
+        r"""
+========
+Test doc
+========
+
+.. contents::
+   :local:
+   :depth: 2
+
+A test document.
+
+.. _label:
+
+Test section
+------------
+
+This is a test section. It has a label.
+
+.. code-block::
+
+    Code without language
+
+.. This is a comment
+
+Another code block::
+
+    ````
+    This one has no language, either.
+    ````
+
+Test subsection
+^^^^^^^^^^^^^^^
+
+Linking the `label`_.
+
+.. code-block:: python
+
+    def f():
+        return 42
+
+Another section
+---------------
+
+Buh!
+
+    Some block quote.
+    Another line.
+
+A line.
+
+.. note::
+
+  This is a note.
+  A second line!
+
+  And a second paragraph.
+""",
+        "restructuredtext",
+        """\x1b[0;1mTest doc\x1b[0m
+\x1b[0;1m════════\x1b[0m
+
+- Test section
+
+  - Test subsection
+- Another section
+
+A test document.
+
+\x1b[0;1mTest section\x1b[0m
+\x1b[0;1m━━━━━━━━━━━━\x1b[0m
+
+This is a test section. It has a label.
+
+Code without language
+
+Another code block:
+
+````
+This one has no language, either.
+````
+
+\x1b[0;1mTest subsection\x1b[0m
+\x1b[0;1m───────────────\x1b[0m
+
+Linking the label.
+
+def f():
+    return 42
+
+\x1b[0;1mAnother section\x1b[0m
+\x1b[0;1m━━━━━━━━━━━━━━━\x1b[0m
+
+Buh!
+
+  Some block quote. Another line.
+
+A line.
+
+!⃝ This is a note. A second line!
+
+   And a second paragraph.""",
+        set(),
+    ),
+    (
+        "images",
+        r"""
+This is an image:
+
+.. image:: foo.png
+
+.. image:: foo.png
+   :alt: alt text
+
+.. image:: foo.png
+   :width: 50cm
+
+.. image:: foo.png
+   :height: 50em
+
+.. image:: foo.png
+   :alt: alt text
+   :width: 50ex
+
+------------
+
+.. image:: foo.png
+   :width: 10px
+   :height: 20px
+""",
+        "restructuredtext",
+        """This is an image:
+
+────────────────────────────────────────────────────────────────────────────────""",
+        set(),
+    ),
+    (
+        "title-ref",
+        "`foo`",
+        "restructuredtext",
+        """\x1b[0;3mfoo\x1b[0m""",
+        set(),
+    ),
+    (
+        "simple-rst",
+        r"""`This` *is* **a** `simple <This>`_ `test <https://example.com>`__.""",
+        "restructuredtext",
+        """\x1b[0;3mThis\x1b[0m \x1b[0;3mis\x1b[0m \x1b[0;1ma\x1b[0m simple (This) test (https://example.com).""",
+        set(),
+    ),
+    (
+        "complex-rst",
+        r"""
+==========
+Main title
+==========
+
+Some text.
+
+.. sectnum::
+.. contents:: Table of Contents
+
+.. _label:
+.. _label_2:
+
+This is a subtitle
+^^^^^^^^^^^^^^^^^^
+
+Some test with ``code``.
+Some *emphasis* and **bold** text.
+
+A `link <https://ansible.com/)>`__.
+
+A `reference <label>`_.
+
+A list:
+
+* Item 1.
+* Item 2.
+
+  This is still item 2.
+* Item 3.
+*
+* Item 5 after an empty item.
+
+An enumeration:
+
+1. Entry 1
+
+   More of Entry 1
+2. Entry 2
+3. Entry 3
+   Second line of entry 3
+
+   - Sublist
+   - Another entry
+
+     1. Subenum
+
+        .. code:: markdown
+
+            Some codeblock:
+            ```python
+            def main(argv): ...
+            ```
+
+     2. Another entry
+
+Another subtitle
+^^^^^^^^^^^^^^^^
+
+Some code:
+
+.. code:: python
+
+    def main(argv):
+        if argv[1] == 'help':
+            print('Help!')
+
+.. note::
+
+  Some note.
+
+  This note has two paragraphs.
+
+A sub-sub-title
+~~~~~~~~~~~~~~~
+
+Something problematic: :pep:`1000000`
+
+Some text...
+
+  Some block quote.
+
+    A nested block quote.
+
+--------
+
+Some unformatted code::
+
+    foo bar!
+    baz bam.
+
+A sub-sub-title
+~~~~~~~~~~~~~~~
+
+The same sub-sub-title again.
+""",
+        "restructuredtext",
+        """\x1b[0;1mMain title\x1b[0m
+\x1b[0;1m══════════\x1b[0m
+
+Some text.
+
+\x1b[0;1mTable of Contents\x1b[0m
+\x1b[0;1m━━━━━━━━━━━━━━━━━\x1b[0m
+
+- 1\xa0\xa0\xa0This is a subtitle
+- 2\xa0\xa0\xa0Another subtitle
+
+  - 2.1\xa0\xa0\xa0A sub-sub-title
+  - 2.2\xa0\xa0\xa0A sub-sub-title
+
+\x1b[0;1m1\xa0\xa0\xa0This is a subtitle\x1b[0m
+\x1b[0;1m━━━━━━━━━━━━━━━━━━━━━━\x1b[0m
+
+Some test with `code`. Some \x1b[0;3memphasis\x1b[0m and \x1b[0;1mbold\x1b[0m text.
+
+A link (https://ansible.com/)).
+
+A reference (label).
+
+A list:
+
+- Item 1.
+- Item 2.
+
+  This is still item 2.
+- Item 3.
+- Item 5 after an empty item.
+
+An enumeration:
+
+1. Entry 1
+
+   More of Entry 1
+1. Entry 2
+1. Entry 3 Second line of entry 3
+
+   - Sublist
+   - Another entry
+
+     1. Subenum
+
+        Some codeblock:
+        ```python
+        def main(argv): ...
+        ```
+     1. Another entry
+
+\x1b[0;1m2\xa0\xa0\xa0Another subtitle\x1b[0m
+\x1b[0;1m━━━━━━━━━━━━━━━━━━━━\x1b[0m
+
+Some code:
+
+def main(argv):
+    if argv[1] == \'help\':
+        print(\'Help!\')
+
+!⃝ Some note.
+
+   This note has two paragraphs.
+
+\x1b[0;1m2.1\xa0\xa0\xa0A sub-sub-title\x1b[0m
+\x1b[0;1m─────────────────────\x1b[0m
+
+Something problematic: ⚠️ :pep:`1000000` ⚠️
+
+\x1b[0;1m⚠️ ERROR/3 ⚠️ (<string>, line 77)\x1b[0m
+
+  PEP number must be a number from 0 to 9999; "1000000" is invalid.
+
+Some text...
+
+  Some block quote.
+
+    A nested block quote.
+
+────────────────────────────────────────────────────────────────────────────────
+
+Some unformatted code:
+
+foo bar!
+baz bam.
+
+\x1b[0;1m2.2\xa0\xa0\xa0A sub-sub-title\x1b[0m
+\x1b[0;1m─────────────────────\x1b[0m
+
+The same sub-sub-title again.""",
+        set(),
+    ),
+    (
+        "system-messages",
+        r"""
+==========
+Main title
+==========
+
+Some text.
+
+.. Trigger a system message:
+
+.. unknown-shit::
+
+  Something.
+""",
+        "restructuredtext",
+        """\x1b[0;1mMain title\x1b[0m
+\x1b[0;1m══════════\x1b[0m
+
+Some text.
+
+\x1b[0;1m⚠️ ERROR/3 ⚠️ (<string>, line 10)\x1b[0m
+
+  Unknown directive type "unknown-shit".
+
+  .. unknown-shit::
+
+    Something.""",
+        set(),
+    ),
+    (
+        "image",
+        r"""Image:
+
+.. image:: image.png
+    :alt: An image
+
+Image w/o alt:
+
+.. image:: https://example.com/image.png
+
+Image w/o alt, with size:
+
+.. image:: https://example.com/image.png
+    :width: 100px
+    :height: 50px
+
+Image with size:
+
+.. image:: https://example.com/image.png
+    :alt: An image
+    :width: 150px
+""",
+        "restructuredtext",
+        """Image:
+
+Image w/o alt:
+
+Image w/o alt, with size:
+
+Image with size:""",
+        set(),
+    ),
+    (
+        "subtitle",
+        # TODO: what should we do with subtitles?
+        r"""
+========
+Test doc
+========
+
+This ends up as a subtitle
+--------------------------
+
+Bar.
+
+Test subsection
+^^^^^^^^^^^^^^^
+
+Foo.
+""",
+        "restructuredtext",
+        """\x1b[0;1mTest doc\x1b[0m
+\x1b[0;1m════════\x1b[0m
+
+Bar.
+
+\x1b[0;1mTest subsection\x1b[0m
+\x1b[0;1m━━━━━━━━━━━━━━━\x1b[0m
+
+Foo.""",
+        {"subtitle"},
     ),
     (
         "bug-2",
