@@ -1,0 +1,2 @@
+minor_changes:
+  - "The markdown renderer now also supports the ``tip``, ``important``, ``warning``, and ``caution`` admonitions (https://github.com/ansible-community/antsibull-docutils/pull/42)."
