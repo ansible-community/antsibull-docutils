@@ -327,52 +327,6 @@ def _indent(lines: list[str], *, first_indent: str, next_indent: str) -> None:
             lines[i] = f"{next_indent}{line}".rstrip(" ")
 
 
-def _get_generic_visit(
-    value: _Formatting | tuple[str, str] | None,
-) -> t.Callable[[t.Any, nodes.Node], None]:
-    # pylint: disable-next=unused-argument
-    def visit(self: t.Any, node: nodes.Node) -> None:
-        if isinstance(value, tuple):
-            # pylint: disable-next=protected-access
-            self._context.top.main.append(text=value[0])
-        elif value is not None:
-            # pylint: disable-next=protected-access
-            self._context.top.state.push_formatting(value)
-            # pylint: disable-next=protected-access
-            self._context.top.main.update_state()
-
-    return visit
-
-
-def _get_generic_depart(
-    value: _Formatting | tuple[str, str] | None,
-) -> t.Callable[[t.Any, nodes.Node], None]:
-    # pylint: disable-next=unused-argument
-    def depart(self: t.Any, node: nodes.Node) -> None:
-        if isinstance(value, tuple):
-            # pylint: disable-next=protected-access
-            self._context.top.main.append(text=value[1])
-        elif value is not None:
-            # pylint: disable-next=protected-access
-            self._context.top.state.pop_formatting(value)
-            # pylint: disable-next=protected-access
-            self._context.top.main.update_state()
-
-    return depart
-
-
-def _add_simple(
-    definitions: dict[str, _Formatting | tuple[str, str] | None],
-) -> t.Callable[[_Class], _Class]:
-    def decorator(clazz: _Class) -> _Class:
-        for class_name, value in definitions.items():
-            setattr(clazz, f"visit_{class_name}", _get_generic_visit(value))
-            setattr(clazz, f"depart_{class_name}", _get_generic_depart(value))
-        return clazz
-
-    return decorator
-
-
 class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
     def __init__(
         self, *, table: nodes.table, destination: Context, visitor: _Translator
@@ -644,6 +598,85 @@ class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-pu
         self.destination.main.add_raw_lines(lines)
 
 
+def _get_generic_visit(
+    value: _Formatting | tuple[str, str] | None,
+) -> t.Callable[[t.Any, nodes.Node], None]:
+    # pylint: disable-next=unused-argument
+    def visit(self: t.Any, node: nodes.Node) -> None:
+        # pylint: disable=protected-access
+        if isinstance(value, tuple):
+            self._context.top.main.append(text=value[0])
+        elif value is not None:
+            self._context.top.state.push_formatting(value)
+            self._context.top.main.update_state()
+
+    return visit
+
+
+def _get_generic_depart(
+    value: _Formatting | tuple[str, str] | None,
+) -> t.Callable[[t.Any, nodes.Node], None]:
+    # pylint: disable-next=unused-argument
+    def depart(self: t.Any, node: nodes.Node) -> None:
+        # pylint: disable=protected-access
+        if isinstance(value, tuple):
+            self._context.top.main.append(text=value[1])
+        elif value is not None:
+            self._context.top.state.pop_formatting(value)
+            self._context.top.main.update_state()
+
+    return depart
+
+
+def _add_simple(
+    definitions: dict[str, _Formatting | tuple[str, str] | None],
+) -> t.Callable[[_Class], _Class]:
+    def decorator(clazz: _Class) -> _Class:
+        for class_name, value in definitions.items():
+            setattr(clazz, f"visit_{class_name}", _get_generic_visit(value))
+            setattr(clazz, f"depart_{class_name}", _get_generic_depart(value))
+        return clazz
+
+    return decorator
+
+
+def _add_admonitions(
+    definitions: dict[str, str],
+) -> t.Callable[[_Class], _Class]:
+    def decorator(clazz: _Class) -> _Class:
+        def get_visit(first_indent: str):
+            # pylint: disable-next=unused-argument
+            def visit(self: t.Any, node: nodes.Node) -> None:
+                # pylint: disable=protected-access
+                self._context.top.main.new_par()
+                self._context.push_context(
+                    IndentContext(
+                        remaining_width=self._context.top.remaining_width,
+                        state=self._context.top.state,
+                        string_proc=self._context.top.string_proc,
+                        first_indent=first_indent,
+                        at_least_one_line=True,
+                    )
+                )
+
+            return visit
+
+        def get_depart():
+            # pylint: disable-next=unused-argument
+            def depart(self: t.Any, node: nodes.Node) -> None:
+                # pylint: disable=protected-access
+                self._context.pop_context()
+
+            return depart
+
+        for class_name, first_indent in definitions.items():
+            setattr(clazz, f"visit_{class_name}", get_visit(first_indent))
+            setattr(clazz, f"depart_{class_name}", get_depart())
+        return clazz
+
+    return decorator
+
+
 # pylint: disable=duplicate-code
 @_add_unsupported_classes
 @_add_simple(
@@ -657,6 +690,19 @@ class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-pu
         "strong": _Formatting.BOLD,
         "subscript": ("<sub>", "</sub>"),
         "superscript": ("<sup>", "</sup>"),
+    }
+)
+@_add_admonitions(
+    {
+        "attention": "⚠️ ",
+        "caution": "⚠️ ",
+        "danger": "⚠️ ",
+        "error": "❌ ",
+        "important": "!\u20dd ",
+        "note": "!\u20dd ",
+        "tip": "ℹ️ ",
+        "hint": "ℹ️ ",
+        "warning": "⚠️ ",
     }
 )
 @_add_skip(
@@ -914,25 +960,6 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     def depart_system_message(self, node: nodes.system_message) -> None:
         self._context.pop_context()
         self._context.top.main.new_par()
-
-    # Node: note
-
-    # pylint: disable-next=missing-function-docstring,unused-argument
-    def visit_note(self, node: nodes.note) -> None:
-        self._context.top.main.new_par()
-        self._context.push_context(
-            IndentContext(
-                remaining_width=self._context.top.remaining_width,
-                state=self._context.top.state,
-                string_proc=self._context.top.string_proc,
-                first_indent="!\u20dd ",
-                at_least_one_line=True,
-            )
-        )
-
-    # pylint: disable-next=missing-function-docstring,unused-argument
-    def depart_note(self, node: nodes.note) -> None:
-        self._context.pop_context()
 
     # Node: topic
 
