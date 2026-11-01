@@ -49,6 +49,13 @@ RENDER_AS_TEXT_AND_STRUCTURE_DATA: list[
         set(),
     ),
     (
+        "url",
+        "https://example.com/foo https://example.com/~foo%20bar?a=b&c=d+e",
+        "restructuredtext",
+        "https://example.com/foo https://example.com/~foo%20bar?a=b&c=d+e",
+        set(),
+    ),
+    (
         "lorem-ipsum",
         r"""
 Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex

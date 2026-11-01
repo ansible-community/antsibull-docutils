@@ -501,6 +501,8 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
             raise ValueError(
                 f"Do not know how to handle reference with attributes {node.attributes!r}"
             )
+        if node.astext() == url:
+            return
         self._context.top.main.append(text=f" ({url})")
 
     # Node: bullet_list
