@@ -11,6 +11,7 @@ Utilities.
 from __future__ import annotations
 
 import abc
+import contextlib
 import typing as t
 
 from docutils import nodes
@@ -132,3 +133,20 @@ class DocumentContextBase(t.Generic[_GlobalContext, _Context]):
         Return the top-most context from the context stack.
         """
         return self._contexts[-1]
+
+    @contextlib.contextmanager
+    def with_fake_top(self, *, fake_top: _Context) -> t.Generator[None]:
+        """
+        Temporarily replace the document context's top with a "fake top" context.
+        """
+        self._contexts.append(fake_top)
+        new_length = len(self._contexts)
+        try:
+            yield
+        finally:
+            if len(self._contexts) != new_length:
+                raise RuntimeError(
+                    f"Internal error: context stack has wrong length {len(self._contexts)},"
+                    f" expected {new_length}!"
+                )
+            self._contexts.pop()

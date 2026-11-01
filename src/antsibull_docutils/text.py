@@ -25,6 +25,8 @@ from ._collector import Formatting as _Formatting
 from ._collector import State as _State
 from ._string import StringProcessor as _StringProcessor
 from ._string import UnicodeStringProcessor as _UnicodeStringProcessor
+from ._table import Cell as _Cell
+from ._table import TableHelper as _TableHelper
 from ._utils import ContextBase as _ContextBase
 from ._utils import DocumentContextBase as _DocumentContextBase
 from ._utils import add_skip as _add_skip
@@ -35,6 +37,8 @@ from .utils import (
     SupportedParser,
     get_docutils_publish_settings,
 )
+
+_Class = t.TypeVar("_Class")
 
 
 class GlobalContext:  # pylint: disable=too-few-public-methods
@@ -129,13 +133,19 @@ class Context(_ContextBase["Context"]):  # pylint: disable=too-many-instance-att
         self._result_top = self._top.close()
         self._result_main = self._main.close()
 
+    def get_lines(self) -> list[str]:
+        """
+        Return the content of the context as a list of lines.
+        """
+        if self._result_main is None or self._result_top is None:
+            raise ValueError("Context is not closed!")
+        return self._result_top + self._result_main
+
     def get_text(self) -> str:
         """
         Return the content of the context as a string.
         """
-        if self._result_main is None or self._result_top is None:
-            raise ValueError("Context is not closed!")
-        return "\n".join(self._result_top + self._result_main)
+        return "\n".join(self.get_lines())
 
 
 class IndentContext(Context):
@@ -317,9 +327,6 @@ def _indent(lines: list[str], *, first_indent: str, next_indent: str) -> None:
             lines[i] = f"{next_indent}{line}".rstrip(" ")
 
 
-_Class = t.TypeVar("_Class")
-
-
 def _get_generic_visit(
     value: _Formatting | tuple[str, str] | None,
 ) -> t.Callable[[t.Any, nodes.Node], None]:
@@ -366,6 +373,277 @@ def _add_simple(
     return decorator
 
 
+class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
+    def __init__(
+        self, *, table: nodes.table, destination: Context, visitor: _Translator
+    ) -> None:
+        self.table = table
+        self.destination = destination
+        self.visitor = visitor
+        helper = _TableHelper(table=table)
+        self.title = helper.title
+        self.col_specs = helper.col_specs
+        self.row_matrix = helper.row_matrix
+        self.cells = helper.cells
+        self.header_rows = helper.header_rows
+        self._horizontal_padding = 1
+        self._vertical_padding = 0
+
+    def _get_maximum_column_widths(self) -> list[int]:
+        # TODO: use values in self.col_specs
+        cols = len(self.col_specs)
+        frame_width = cols * (1 + 2 * self._horizontal_padding) + 1
+        max_content_width = self.destination.remaining_width - frame_width
+        w = max(1, max_content_width // cols) if cols else 1
+        return [w] * cols
+
+    def _prerender_cell(self, *, cell: _Cell, max_col_widths: list[int]) -> int:
+        # Compute max width
+        width = 0
+        for col in range(cell.begin_col, cell.end_col + 1):
+            width += max_col_widths[col]
+        width += (cell.end_col - cell.begin_col) * (1 + 2 * self._horizontal_padding)
+
+        # Compute content lines
+        top = Context(
+            remaining_width=width,
+            state=self.destination.state.clone(),
+            string_proc=self.destination.string_proc,
+            ignore_newlines=True,
+        )
+        # pylint: disable-next=protected-access
+        with self.visitor._context.with_fake_top(fake_top=top):
+            cell.entry.walkabout(self.visitor)
+        top.close()
+
+        # Add content lines
+        padding = " " * self._horizontal_padding
+        for _ in range(self._vertical_padding):
+            cell.lines.append(padding * 2)
+        for line in top.get_lines():
+            cell.lines.append(f"{padding}{line}{padding}")
+        for _ in range(self._vertical_padding):
+            cell.lines.append(padding * 2)
+
+        # Compute maximum width
+        return (
+            max(
+                self.destination.string_proc.get_column_count(text=line)
+                for line in cell.lines
+            )
+            if cell.lines
+            else 0
+        )
+
+    def _prerender_title(self, *, max_width: int) -> list[str]:
+        if self.title is None:
+            return []
+
+        # Compute content lines
+        top = Context(
+            remaining_width=max_width,
+            state=self.destination.state.clone(),
+            string_proc=self.destination.string_proc,
+            ignore_newlines=True,
+        )
+        # pylint: disable-next=protected-access
+        with self.visitor._context.with_fake_top(fake_top=top):
+            for node in self.title:
+                node.walkabout(self.visitor)
+        top.close()
+
+        return top.get_lines()
+
+    def _position_cols(self, *, act_col_widths: list[int]) -> list[int]:
+        result = [0] * (len(act_col_widths) + 1)
+        for col, width in enumerate(act_col_widths):
+            result[col + 1] = result[col] + 1 + max(width, 2 * self._horizontal_padding)
+        return result
+
+    def _position_rows(self) -> list[int]:
+        result = [0] * (len(self.row_matrix) + 1)
+        for row_idx, row in enumerate(self.row_matrix):
+            result[row_idx + 1] = result[row_idx] + 1
+            for cell in row:
+                if cell is not None and cell.begin_row == row_idx:
+                    result[cell.end_row + 1] = max(
+                        result[cell.end_row + 1], result[row_idx] + 1 + len(cell.lines)
+                    )
+        return result
+
+    def _render_line(self, *, content: list[tuple[int, str]]) -> str:
+        content.sort()
+        result = []
+        width = 0
+        for position, text in content:
+            if position > width:
+                result.append(" " * (position - width))
+                width = position
+            elif position < width:
+                raise ValueError(f"Bad content, overlap at {position}: {content}")
+            result.append(text)
+            width += self.destination.string_proc.get_column_count(text=text)
+        return "".join(result)
+
+    @staticmethod
+    def _get_box_drawing(
+        *,
+        has_above: bool = False,
+        has_below: bool = False,
+        has_left: bool = False,
+        has_right: bool = False,
+        header_sep: bool,
+    ) -> str:
+        index = (
+            (0 if has_above else 8)
+            + (0 if has_below else 4)
+            + (0 if has_left else 2)
+            + (0 if has_right else 1)
+        )
+        if header_sep:
+            return "╪╡╞│╧╛╘╵╤╕╒╷═╴╶ "[index]
+        return "┼┤├│┴┘└╵┬┐┌╷─╴╶ "[index]
+
+    def _render_lines(
+        self,
+        *,
+        line_content: list[list[tuple[int, str]]],
+        has_right: bool,
+        has_below: bool,
+        row: int,
+        ridx: int,
+        col: int,
+        cidx: int,
+        cols: list[int],
+        rows: list[int],
+        is_header_sep: bool,
+    ) -> None:
+        if has_right:
+            line_content[row].append(
+                (
+                    col + 1,
+                    self._get_box_drawing(
+                        has_left=True,
+                        has_right=True,
+                        header_sep=is_header_sep,
+                    )
+                    * (cols[cidx + 1] - col - 1),
+                )
+            )
+        if has_below:
+            c = self._get_box_drawing(has_above=True, has_below=True, header_sep=False)
+            for r in range(row + 1, rows[ridx + 1]):
+                line_content[r].append((col, c))
+
+    def _render_frame(
+        self,
+        *,
+        line_content: list[list[tuple[int, str]]],
+        rows: list[int],
+        cols: list[int],
+    ) -> None:
+        for ridx, row in enumerate(rows):
+            has_row_before = ridx > 0
+            has_row_after = ridx + 1 < len(rows)
+            is_header_sep = ridx == self.header_rows
+            for cidx, col in enumerate(cols):
+                has_col_before = cidx > 0
+                has_col_after = cidx + 1 < len(cols)
+                c11 = (
+                    self.row_matrix[ridx - 1][cidx - 1]
+                    if has_col_before and has_row_before
+                    else None
+                )
+                c12 = (
+                    self.row_matrix[ridx - 1][cidx]
+                    if has_col_after and has_row_before
+                    else None
+                )
+                c21 = (
+                    self.row_matrix[ridx][cidx - 1]
+                    if has_col_before and has_row_after
+                    else None
+                )
+                has_above = has_row_before
+                has_below = has_row_after
+                has_left = has_col_before
+                has_right = has_col_after
+                if c11 and c11.end_col >= cidx:
+                    has_above = False
+                if c21 and c21.end_col >= cidx:
+                    has_below = False
+                if c11 and c11.end_row >= ridx:
+                    has_left = False
+                if c12 and c12.end_row >= ridx:
+                    has_right = False
+                if has_above or has_below or has_left or has_right:
+                    line_content[row].append(
+                        (
+                            col,
+                            self._get_box_drawing(
+                                has_above=has_above,
+                                has_below=has_below,
+                                has_left=has_left,
+                                has_right=has_right,
+                                header_sep=is_header_sep,
+                            ),
+                        )
+                    )
+                    self._render_lines(
+                        line_content=line_content,
+                        has_right=has_right,
+                        has_below=has_below,
+                        row=row,
+                        ridx=ridx,
+                        col=col,
+                        cidx=cidx,
+                        cols=cols,
+                        rows=rows,
+                        is_header_sep=is_header_sep,
+                    )
+
+    def _render_cells(
+        self,
+        *,
+        line_content: list[list[tuple[int, str]]],
+        rows: list[int],
+        cols: list[int],
+    ) -> None:
+        for cell in self.cells:
+            start_row = rows[cell.begin_row] + 1
+            start_col = cols[cell.begin_col] + 1
+            for index, line in enumerate(cell.lines):
+                line_content[start_row + index].append((start_col, line))
+
+    def _render_table(
+        self, *, rows: list[int], cols: list[int], title_lines: list[str]
+    ) -> list[str]:
+        line_content: list[list[tuple[int, str]]] = [[] for _ in range(rows[-1] + 1)]
+        self._render_frame(line_content=line_content, rows=rows, cols=cols)
+        self._render_cells(line_content=line_content, rows=rows, cols=cols)
+        lines = [self._render_line(content=content) for content in line_content]
+        lines.extend(title_lines)
+        return lines
+
+    def render(self) -> None:
+        """
+        Render the table.
+        """
+        max_col_widths = self._get_maximum_column_widths()
+        act_col_widths = [0] * len(max_col_widths)
+        for cell in self.cells:
+            cell_width = self._prerender_cell(cell=cell, max_col_widths=max_col_widths)
+            # TODO: do this more weighted to avoid unnecessary space for a column
+            col_width = math.ceil(cell_width / (cell.end_col - cell.begin_col + 1))
+            for col in range(cell.begin_col, cell.end_col + 1):
+                act_col_widths[col] = max(act_col_widths[col], col_width)
+        cols = self._position_cols(act_col_widths=act_col_widths)
+        rows = self._position_rows()
+        title_lines = self._prerender_title(max_width=self.destination.remaining_width)
+        lines = self._render_table(rows=rows, cols=cols, title_lines=title_lines)
+        self.destination.main.add_raw_lines(lines)
+
+
 # pylint: disable=duplicate-code
 @_add_unsupported_classes
 @_add_simple(
@@ -373,6 +651,7 @@ def _add_simple(
         "document": None,
         "inline": None,
         "generated": None,
+        "entry": None,
         "literal": ("`", "`"),
         "emphasis": _Formatting.ITALICS,
         "strong": _Formatting.BOLD,
@@ -718,18 +997,21 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     # Node: problematic
 
     # pylint: disable-next=missing-function-docstring,unused-argument
-    def visit_problematic(self, node):
+    def visit_problematic(self, node: nodes.problematic) -> None:
         self._context.top.main.append(text="⚠️ ")
 
     # pylint: disable-next=missing-function-docstring,unused-argument
-    def depart_problematic(self, node):
+    def depart_problematic(self, node: nodes.problematic) -> None:
         self._context.top.main.append(text=" ⚠️")
 
     # Node: problematic
 
     # pylint: disable-next=missing-function-docstring
-    def visit_table(self, node):
-        # TODO: render tables!
+    def visit_table(self, node: nodes.table) -> None:
+        renderer = _TableRenderer(
+            table=node, destination=self._context.top, visitor=self
+        )
+        renderer.render()
         raise nodes.SkipNode
 
 

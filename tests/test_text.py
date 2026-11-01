@@ -324,6 +324,39 @@ This is an image:
         set(),
     ),
     (
+        "table",
+        r"""
+This is a table:
+
++------------+------------+-----------+
+| Header 1   | Header 2   | Header 3  |
++============+============+===========+
+| body row 1 | column 2   | column 3  |
++------------+------------+-----------+
+| body row 2 | Cells may span columns.|
++------------+------------+-----------+
+| body row 3 | Cells may  | - Cells   |
++------------+ span rows. | - contain |
+| body row 4 |            | - blocks. |
++------------+------------+-----------+
+""",
+        "restructuredtext",
+        """This is a table:
+
+┌────────────┬──────────────────────┬─────────────┐
+│ Header 1   │ Header 2             │ Header 3    │
+╞════════════╪══════════════════════╪═════════════╡
+│ body row 1 │ column 2             │ column 3    │
+├────────────┼──────────────────────┴─────────────┤
+│ body row 2 │ Cells may span columns.            │
+├────────────┼──────────────────────┬─────────────┤
+│ body row 3 │ Cells may span rows. │ - Cells     │
+├────────────┤                      │ - contain   │
+│ body row 4 │                      │ - blocks.   │
+└────────────┴──────────────────────┴─────────────┘""",
+        set(),
+    ),
+    (
         "title-ref",
         "`foo`",
         "restructuredtext",
@@ -590,6 +623,77 @@ Image w/o alt:
 Image w/o alt, with size:
 
 Image with size:""",
+        set(),
+    ),
+    (
+        "table",
+        r""".. _tables:
+
+======
+Tables
+======
+
+Regular table:
+
++-----+-----+
+| Foo | Bar |
++=====+=====+
+| A   | B   |
++-----+-----+
+| C   | D   |
+|     | DD  |
+|     |     |
+|     | DDD |
++-----+-----+
+
+A list table:
+
+.. list-table:: The table's title
+  :width: 100%
+  :widths: auto
+  :header-rows: 1
+
+  * - Foo
+    - Bar
+  * - A
+    - B
+  * - C
+    - D
+
+      DD
+
+      DDD
+""",
+        "restructuredtext",
+        """\x1b[0;1mTables\x1b[0m
+\x1b[0;1m══════\x1b[0m
+
+Regular table:
+
+┌─────┬──────┐
+│ Foo │ Bar  │
+╞═════╪══════╡
+│ A   │ B    │
+├─────┼──────┤
+│ C   │ D DD │
+│     │      │
+│     │ DDD  │
+└─────┴──────┘
+
+A list table:
+
+┌─────┬─────┐
+│ Foo │ Bar │
+╞═════╪═════╡
+│ A   │ B   │
+├─────┼─────┤
+│ C   │ D   │
+│     │     │
+│     │ DD  │
+│     │     │
+│     │ DDD │
+└─────┴─────┘
+The table's title""",
         set(),
     ),
     (
