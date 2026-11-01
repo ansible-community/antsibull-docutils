@@ -171,6 +171,25 @@ class ListContext(Context):
         self.next_indent = " " * len(indent)
 
 
+class AdmonitionContext(Context):
+    """
+    Context for an admonition.
+    """
+
+    def __init__(self, identifier: str):
+        super().__init__()
+        self.identifier = identifier
+
+    def close(self) -> None:
+        self.ensure_double_newline()
+        lines = self.get_text().rstrip("\n").splitlines()
+        # See https://github.com/orgs/community/discussions/16925 for the syntax
+        self.replace_main(
+            [f"> [!{self.identifier}]\n"]
+            + [f"> {line}\n" if line else ">\n" for line in lines]
+        )
+
+
 def get_language_from_literal_block(node: nodes.literal_block) -> str | None:
     """
     Obtain programming language from a literal block.
@@ -305,6 +324,35 @@ def _add_skip(class_names: list[str]) -> t.Callable[[_Class], _Class]:
     return decorator
 
 
+def _add_admonitions(
+    definitions: dict[str, str],
+) -> t.Callable[[_Class], _Class]:
+    def decorator(clazz: _Class) -> _Class:
+        def get_visit(identifier: str):
+            # pylint: disable-next=unused-argument
+            def visit(self: t.Any, node: nodes.Node) -> None:
+                # pylint: disable=protected-access
+                self._context.top.ensure_double_newline()
+                self._context.push_context(AdmonitionContext(identifier=identifier))
+
+            return visit
+
+        def get_depart():
+            # pylint: disable-next=unused-argument
+            def depart(self: t.Any, node: nodes.Node) -> None:
+                # pylint: disable=protected-access
+                self._context.pop_context()
+
+            return depart
+
+        for class_name, identifier in definitions.items():
+            setattr(clazz, f"visit_{class_name}", get_visit(identifier))
+            setattr(clazz, f"depart_{class_name}", get_depart())
+        return clazz
+
+    return decorator
+
+
 @_add_unsupported_classes
 @_add_simple(
     {
@@ -316,6 +364,16 @@ def _add_skip(class_names: list[str]) -> t.Callable[[_Class], _Class]:
         "strong": ("<strong>", "</strong>"),
         "subscript": ("<sub>", "</sub>"),
         "superscript": ("<sup>", "</sup>"),
+    }
+)
+@_add_admonitions(
+    {
+        "note": "NOTE",
+        "tip": "TIP",
+        "important": "IMPORTANT",
+        "warning": "WARNING",
+        "caution": "CAUTION",
+        # Missing admonitions: attention, danger, error, hint
     }
 )
 @_add_skip(
@@ -569,31 +627,6 @@ class Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     def depart_system_message(self, node: nodes.system_message) -> None:
         self._context.top.ensure_double_newline()
         self._context.top.add_main("</details>\n\n")
-
-    # Node: system_message
-
-    # pylint: disable-next=missing-function-docstring,unused-argument
-    def visit_note(self, node: nodes.note) -> None:
-        class NoteContext(Context):
-            """
-            Context for a note.
-            """
-
-            def close(self) -> None:
-                self.ensure_double_newline()
-                lines = self.get_text().rstrip("\n").splitlines()
-                # See https://github.com/orgs/community/discussions/16925 for the syntax
-                self.replace_main(
-                    ["> [!NOTE]\n"]
-                    + [f"> {line}\n" if line else ">\n" for line in lines]
-                )
-
-        self._context.top.ensure_double_newline()
-        self._context.push_context(NoteContext())
-
-    # pylint: disable-next=missing-function-docstring,unused-argument
-    def depart_note(self, node: nodes.note) -> None:
-        self._context.pop_context()
 
     # Node: topic
 
