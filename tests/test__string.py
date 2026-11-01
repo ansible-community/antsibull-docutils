@@ -231,6 +231,30 @@ TEST_UNICODE_STRING_PROCESSOR_GET_COLUMN_COUNT_DATA: list[tuple[str, int]] = [
     ("foo", 3),
     ("foo bar", 7),
     ("      ", 6),
+    # The following use grapheme cluster examples from
+    # https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries
+    # The column counts are not what we would expect from looking at the result,
+    # so a better implementation that improves on this is definitely welcome...
+    (
+        "நி",  # Tamil ni grapheme (two codeopints)
+        2,
+    ),
+    (
+        "กำ",  # Thai kam grapheme (two codepoints)
+        2,
+    ),
+    (
+        "षि",  # Devanagari ssi grapheme (two codepoints)
+        2,
+    ),
+    (
+        "क्षि",  # Devanagari kshi grapheme (four codepoints)
+        3,
+    ),
+    (
+        "क्षि",  # Devanagari kshi grapheme (four codepoints)
+        3,
+    ),
 ]
 
 
