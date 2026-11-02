@@ -10,9 +10,15 @@ Test _string module.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
-from antsibull_docutils._string import ASCIIStringProcessor, UnicodeStringProcessor
+from antsibull_docutils._string import (
+    ASCIIStringProcessor,
+    UnicodeStringProcessor,
+    has_unicode_string_processor,
+)
 
 TEST_ASCII_STRING_PROCESSOR_GET_COLUMN_COUNT_DATA: list[tuple[str, int]] = [
     ("", 0),
@@ -572,3 +578,13 @@ def test_UnicodeStringProcessor_split(
     assert space == expected_space
     assert space_columns == expected_space_columns
     assert remainder == expected_remainder
+
+
+def test_has_unicode_string_processor() -> None:
+    with patch("antsibull_docutils._string._HAS_ITER_GRAPHEMES", False):
+        with patch("antsibull_docutils._string._HAS_GRAPHEME", False):
+            assert has_unicode_string_processor() is False
+            with pytest.raises(
+                RuntimeError, match="^Unicode string processing requires"
+            ):
+                UnicodeStringProcessor()

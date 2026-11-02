@@ -70,8 +70,7 @@ class TableHelper:  # pylint: disable=too-few-public-methods
                     self.col_specs.append(1)
                 next_row = 0
                 thead = _find_child(child, clazz=nodes.thead)
-                if thead:
-                    next_row = self._collect_rows(next_row, thead, header=True)
+                next_row = self._collect_rows(next_row, thead, header=True)
                 self.header_rows = next_row
                 if next_row < len(self.row_matrix) and any(
                     elt is not None for elt in self.row_matrix[next_row]
@@ -81,12 +80,13 @@ class TableHelper:  # pylint: disable=too-few-public-methods
                         f" but found {self.row_matrix[next_row]}"
                     )
                 tbody = _find_child(child, clazz=nodes.tbody)
-                if tbody:
-                    next_row = self._collect_rows(next_row, tbody, header=False)
+                next_row = self._collect_rows(next_row, tbody, header=False)
 
     def _collect_rows(
-        self, next_row: int, elt: nodes.thead | nodes.tbody, *, header: bool
+        self, next_row: int, elt: nodes.thead | nodes.tbody | None, *, header: bool
     ) -> int:
+        if elt is None:
+            return next_row
         for row_idx, row in enumerate(elt):
             if not isinstance(row, nodes.row):
                 raise ValueError(  # pragma: no cover

@@ -153,6 +153,18 @@ class _Context(
         return "\n".join(self.get_lines())
 
 
+def _indent(lines: list[str], *, first_indent: str, next_indent: str) -> None:
+    while lines and lines[0] == "":
+        del lines[0]
+    while lines and lines[-1] == "":
+        del lines[-1]
+    for i, line in enumerate(lines):
+        if i == 0:
+            lines[i] = f"{first_indent}{line}".rstrip(" ")
+        else:
+            lines[i] = f"{next_indent}{line}".rstrip(" ")
+
+
 class _IndentContext(_Context):
     """
     Context for things to be indented.
@@ -319,18 +331,6 @@ class _DocumentContext(_DocumentContextBase[GlobalContext, _Context]):
                 string_proc=string_proc,
             )
         )
-
-
-def _indent(lines: list[str], *, first_indent: str, next_indent: str) -> None:
-    while lines and lines[0] == "":
-        del lines[0]
-    while lines and lines[-1] == "":
-        del lines[-1]
-    for i, line in enumerate(lines):
-        if i == 0:
-            lines[i] = f"{first_indent}{line}".rstrip(" ")
-        else:
-            lines[i] = f"{next_indent}{line}".rstrip(" ")
 
 
 class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
@@ -823,8 +823,6 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     def depart_reference(self, node: nodes.reference) -> None:
         if "refuri" in node.attributes:
             url: str = node.attributes["refuri"]
-            # name = node.attributes.get("name") or "link"
-            # TODO: is this really an URL? What does 'name' tell us?
         elif "refid" in node.attributes:
             return
         else:
