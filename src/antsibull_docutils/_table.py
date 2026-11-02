@@ -76,7 +76,7 @@ class TableHelper:  # pylint: disable=too-few-public-methods
                 if next_row < len(self.row_matrix) and any(
                     elt is not None for elt in self.row_matrix[next_row]
                 ):
-                    raise ValueError(
+                    raise ValueError(  # pragma: no cover
                         f"Bad table: expected {next_row} to be empty after header,"
                         f" but found {self.row_matrix[next_row]}"
                     )
@@ -89,12 +89,18 @@ class TableHelper:  # pylint: disable=too-few-public-methods
     ) -> int:
         for row_idx, row in enumerate(elt):
             if not isinstance(row, nodes.row):
-                raise ValueError(f"Bad table: expected row, got {row}")
+                raise ValueError(  # pragma: no cover
+                    f"Bad table: expected row, got {row}"
+                )
+
+            # Place entries
             col = 0
             m_row = self._get_matrix_row(next_row)
             for entry in row:
                 if not isinstance(entry, nodes.entry):
-                    raise ValueError(f"Bad table: expected entry, got {entry}")
+                    raise ValueError(  # pragma: no cover
+                        f"Bad table: expected entry, got {entry}"
+                    )
                 col = self._collect_cell(
                     entry=entry,
                     next_row=next_row,
@@ -103,6 +109,8 @@ class TableHelper:  # pylint: disable=too-few-public-methods
                     m_row=m_row,
                     header=header,
                 )
+
+            # Find next free row index
             next_row += 1
             while next_row < len(self.row_matrix):
                 if any(elt is None for elt in self.row_matrix[next_row]):
@@ -120,15 +128,18 @@ class TableHelper:  # pylint: disable=too-few-public-methods
         m_row: list[Cell | None],
         header: bool,
     ) -> int:
+        # Find next free column index
         while col < len(m_row):
             if m_row[col] is None:
                 break
             col += 1
         if col == len(m_row):
-            raise ValueError(
+            raise ValueError(  # pragma: no cover
                 f"Bad table: found cell {entry} in row {next_row} (row #{row_idx} in"
                 f" {'header' if header else 'table body'}) that does not fit into this row."
             )
+
+        # Create cell
         cell = Cell(
             begin_row=next_row,
             begin_col=col,
@@ -138,11 +149,13 @@ class TableHelper:  # pylint: disable=too-few-public-methods
             lines=[],
         )
         self.cells.append(cell)
+
+        # Place cell, and check for collisions
         for r in range(cell.begin_row, cell.end_row + 1):
             rr = self._get_matrix_row(r)
             for c in range(cell.begin_col, cell.end_col + 1):
                 if rr[c] is not None:
-                    raise ValueError(
+                    raise ValueError(  # pragma: no cover
                         f"Bad table: cell {cell} collides with existing entry"
                         f" {rr[c]} in row {r} / col {c}"
                     )

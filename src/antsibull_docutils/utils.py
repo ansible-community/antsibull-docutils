@@ -27,10 +27,10 @@ from docutils.parsers.rst.roles import register_local_role
 from docutils.utils import Reporter as DocutilsReporter
 from docutils.utils import SystemMessage
 
-if t.TYPE_CHECKING:
-    from docutils.parsers.rst.states import Inliner  # pragma: no cover
+if t.TYPE_CHECKING:  # pragma: no cover
+    from docutils.parsers.rst.states import Inliner
 
-    RSTRole = t.Callable[  # pragma: no cover
+    RSTRole = t.Callable[
         [str, str, str, int, Inliner, Mapping[str, t.Any], Sequence[str]],
         tuple[Sequence[nodes.Node], Sequence[SystemMessage]],
     ]

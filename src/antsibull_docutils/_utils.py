@@ -145,7 +145,7 @@ class DocumentContextBase(t.Generic[_GlobalContext, _Context]):
             yield
         finally:
             if len(self._contexts) != new_length:
-                raise RuntimeError(
+                raise RuntimeError(  # pragma: no cover
                     f"Internal error: context stack has wrong length {len(self._contexts)},"
                     f" expected {new_length}!"
                 )

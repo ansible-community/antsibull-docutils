@@ -339,6 +339,10 @@ This is a table:
 +------------+ span rows. | - contain |
 | body row 4 |            | - blocks. |
 +------------+------------+-----------+
+| body row 5 | One paragraph.         |
++------------+                        |
+| body row 6 | Two paragraphs. กำ     |
++------------+------------+-----------+
 """,
         "restructuredtext",
         """This is a table:
@@ -353,7 +357,11 @@ This is a table:
 │ body row 3 │ Cells may span rows. │ - Cells     │
 ├────────────┤                      │ - contain   │
 │ body row 4 │                      │ - blocks.   │
-└────────────┴──────────────────────┴─────────────┘""",
+├────────────┼──────────────────────┴─────────────┤
+│ body row 5 │ One paragraph.                     │
+├────────────┤                                    │
+│ body row 6 │ Two paragraphs. กำ                 │
+└────────────┴────────────────────────────────────┘""",
         set(),
     ),
     (

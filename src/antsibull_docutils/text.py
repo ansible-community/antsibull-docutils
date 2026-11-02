@@ -286,7 +286,7 @@ class ListContext(Context):
         first_indent = self.enumerator.get_next_first_indent()
         indent_length = self.string_proc.get_column_count(text=first_indent)
         if indent_length > self.max_length:
-            raise RuntimeError(
+            raise RuntimeError(  # pragma: no cover
                 f"Expected a maximum indent column count of {self.max_length},"
                 f" but got {first_indent!r} of column count {indent_length}"
             )
@@ -434,7 +434,9 @@ class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-pu
                 result.append(" " * (position - width))
                 width = position
             elif position < width:
-                raise ValueError(f"Bad content, overlap at {position}: {content}")
+                raise ValueError(  # pragma: no cover
+                    f"Bad content, overlap at {position}: {content}"
+                )
             result.append(text)
             width += self.destination.string_proc.get_column_count(text=text)
         return "".join(result)
@@ -823,7 +825,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
             return
         else:
             # docutils fails an assertion at this point
-            raise ValueError(
+            raise ValueError(  # pragma: no cover
                 f"Do not know how to handle reference with attributes {node.attributes!r}"
             )
         if node.astext() == url:
