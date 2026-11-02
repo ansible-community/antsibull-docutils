@@ -227,8 +227,8 @@ class UnicodeStringProcessor(StringProcessor):
     def __init__(self) -> None:
         if not has_unicode_string_processor():
             raise RuntimeError(
-                "Unicode string processing is on Python 3.15+ or"
-                " when graphemeu (https://pypi.org/project/graphemeu/) is installed"
+                "Unicode string processing requires Python 3.15+ or"
+                " that graphemeu (https://pypi.org/project/graphemeu/) is installed"
             )
 
     def get_column_count(self, *, text: str) -> int:

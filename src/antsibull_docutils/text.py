@@ -51,6 +51,7 @@ class GlobalContext:  # pylint: disable=too-few-public-methods
     title_headings: str = """═━─┉┅┈┄-~.+`'"_"""
     column_width: int = 80
     use_ansi_formatting: bool = True
+    use_unicode_splitting: t.Literal["always", "never", "auto"] = "auto"
 
 
 class _Context(
@@ -1090,11 +1091,14 @@ def render_as_text(
     """
     if global_context is None:
         global_context = GlobalContext()
-    string_proc = (
-        _UnicodeStringProcessor()
-        if _has_unicode_string_processor()
-        else _ASCIIStringProcessor()
-    )
+    string_proc: _StringProcessor = _ASCIIStringProcessor()
+    if (
+        global_context.use_unicode_splitting == "auto"
+        and _has_unicode_string_processor()
+    ):
+        string_proc = _UnicodeStringProcessor()
+    if global_context.use_unicode_splitting == "always":
+        string_proc = _UnicodeStringProcessor()
     document_context = _DocumentContext(
         global_context=global_context, string_proc=string_proc
     )

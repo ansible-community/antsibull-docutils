@@ -37,7 +37,6 @@ classifiers = [
 ]
 dependencies = [
     "docutils",
-    "graphemeu >= 0.8.0; python_version < '3.15'",
 ]
 
 [project.urls]
@@ -47,6 +46,19 @@ dependencies = [
 "Changelog" = "https://github.com/ansible-community/antsibull-docutils/tree/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+
+unicode = [
+    "graphemeu >= 0.8.0; python_version < '3.15'",
+]
+
+all = [
+    "antsibull-docutils[unicode]",
+]
+
+#
+# Development. Not user facing.
+#
+
 codeqa = [
     "antsibull-changelog",
     "flake8 >= 3.8.0",

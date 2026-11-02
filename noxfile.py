@@ -35,7 +35,7 @@ def install(session: nox.Session, *args, editable=False, **kwargs):
 
 @nox.session(python=["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"])
 def test(session: nox.Session):
-    install(session, ".[test, coverage]", editable=True)
+    install(session, ".[all, test, coverage]", editable=True)
     covfile = Path(session.create_tmp(), ".coverage")
     more_args = []
     if session.python not in {"3.9", "3.10", "3.11"}:
@@ -73,7 +73,7 @@ def lint(session: nox.Session):
 
 @nox.session
 def formatters(session: nox.Session):
-    install(session, ".[formatters]")
+    install(session, ".[all, formatters]")
     posargs = list(session.posargs)
     if IN_CI:
         posargs.append("--check")
@@ -83,7 +83,7 @@ def formatters(session: nox.Session):
 
 @nox.session
 def codeqa(session: nox.Session):
-    install(session, ".[codeqa]", editable=True)
+    install(session, ".[all, codeqa]", editable=True)
     session.run("flake8", "src/antsibull_docutils", "tests", *session.posargs)
     session.run(
         "pylint",
@@ -99,7 +99,7 @@ def codeqa(session: nox.Session):
 
 @nox.session
 def typing(session: nox.Session):
-    install(session, ".[typing]")
+    install(session, ".[all, typing]")
     session.run("mypy", "src/antsibull_docutils", "tests")
 
 
