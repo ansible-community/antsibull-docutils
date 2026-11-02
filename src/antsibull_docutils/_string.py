@@ -17,9 +17,15 @@ import unicodedata
 
 # The following tests whether Python 3.15+ is used.
 _HAS_ITER_GRAPHEMES = hasattr(unicodedata, "iter_graphemes")
+_HAS_GRAPHEME = False  # pylint: disable=invalid-name
 
 if not _HAS_ITER_GRAPHEMES:
-    import grapheme
+    try:
+        import grapheme
+    except ImportError:
+        pass
+    else:
+        _HAS_GRAPHEME = True  # pylint: disable=invalid-name
 
 
 def _iter_graphemes(
@@ -199,6 +205,13 @@ def _find_space(*, text: str, start: int, end: int) -> tuple[int, int]:
     )
 
 
+def has_unicode_string_processor() -> bool:
+    """
+    Report whether ``UnicodeStringProcessor`` is available.
+    """
+    return _HAS_ITER_GRAPHEMES or _HAS_GRAPHEME
+
+
 class UnicodeStringProcessor(StringProcessor):
     """
     Provides string processing functionality with proper Unicode support.
@@ -210,6 +223,13 @@ class UnicodeStringProcessor(StringProcessor):
     which comes with its own set of baggage, or stick to a simpler, but often
     enough sufficient approach like this one.
     """
+
+    def __init__(self) -> None:
+        if not has_unicode_string_processor():
+            raise RuntimeError(
+                "Unicode string processing is on Python 3.15+ or"
+                " when graphemeu (https://pypi.org/project/graphemeu/) is installed"
+            )
 
     def get_column_count(self, *, text: str) -> int:
         """
@@ -394,3 +414,11 @@ class UnicodeStringProcessor(StringProcessor):
             space_columns=space_columns,
             end_index=end_index,
         )
+
+
+__all__ = (
+    "StringProcessor",
+    "ASCIIStringProcessor",
+    "UnicodeStringProcessor",
+    "has_unicode_string_processor",
+)

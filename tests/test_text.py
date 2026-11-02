@@ -15,11 +15,11 @@ import typing as t
 import pytest
 
 from antsibull_docutils._collector import EmptyState
-from antsibull_docutils._string import UnicodeStringProcessor
+from antsibull_docutils._string import ASCIIStringProcessor
 from antsibull_docutils.text import (
-    Context,
-    DocumentContext,
     GlobalContext,
+    _Context,
+    _DocumentContext,
     render_as_text,
 )
 from antsibull_docutils.utils import get_document_structure
@@ -812,39 +812,54 @@ def test_render_as_text(
 
 
 def test_context() -> None:
-    context = Context(
+    context = _Context(
         has_top=False,
         remaining_width=80,
         state=EmptyState(),
-        string_proc=UnicodeStringProcessor(),
+        string_proc=ASCIIStringProcessor(),
     )
     with pytest.raises(ValueError) as exc:
         context.top.append(text="test")
     assert str(exc.value) == "Context has no top part"
 
-    subcontext = Context(
+    subcontext = _Context(
         has_top=True,
         remaining_width=70,
         state=EmptyState(),
-        string_proc=UnicodeStringProcessor(),
+        string_proc=ASCIIStringProcessor(),
     )
+    with pytest.raises(ValueError) as exc:
+        context.append(subcontext)
+    assert str(exc.value) == "Context is not closed!"
+
+    with pytest.raises(ValueError) as exc:
+        subcontext.get_lines()
+    assert str(exc.value) == "Context is not closed!"
+
     subcontext.close()
+
     with pytest.raises(ValueError) as exc:
         context.append(subcontext)
     assert str(exc.value) == "Context has no top part"
 
-    context2 = Context(
+    with pytest.raises(ValueError) as exc:
+        subcontext.close()
+    assert str(exc.value) == "Context is already closed!"
+
+    context2 = _Context(
         has_top=True,
         remaining_width=80,
         state=EmptyState(),
-        string_proc=UnicodeStringProcessor(),
+        string_proc=ASCIIStringProcessor(),
     )
     context2.append(subcontext)
 
 
 def test_document_context() -> None:
     global_context = GlobalContext()
-    doc_context = DocumentContext(global_context)
+    doc_context = _DocumentContext(
+        global_context=global_context, string_proc=ASCIIStringProcessor()
+    )
 
     with pytest.raises(ValueError) as exc:
         doc_context.pop_context()
@@ -852,8 +867,8 @@ def test_document_context() -> None:
 
     previous_top = doc_context.top
 
-    a_context = Context(
-        remaining_width=80, state=EmptyState(), string_proc=UnicodeStringProcessor()
+    a_context = _Context(
+        remaining_width=80, state=EmptyState(), string_proc=ASCIIStringProcessor()
     )
     doc_context.push_context(a_context)
     assert doc_context.top is a_context

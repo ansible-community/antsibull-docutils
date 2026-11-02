@@ -23,8 +23,10 @@ from ._collector import Collector as _Collector
 from ._collector import EmptyState as _EmptyState
 from ._collector import Formatting as _Formatting
 from ._collector import State as _State
+from ._string import ASCIIStringProcessor as _ASCIIStringProcessor
 from ._string import StringProcessor as _StringProcessor
 from ._string import UnicodeStringProcessor as _UnicodeStringProcessor
+from ._string import has_unicode_string_processor as _has_unicode_string_processor
 from ._table import Cell as _Cell
 from ._table import TableHelper as _TableHelper
 from ._utils import ContextBase as _ContextBase
@@ -51,7 +53,9 @@ class GlobalContext:  # pylint: disable=too-few-public-methods
     use_ansi_formatting: bool = True
 
 
-class Context(_ContextBase["Context"]):  # pylint: disable=too-many-instance-attributes
+class _Context(
+    _ContextBase["_Context"]
+):  # pylint: disable=too-many-instance-attributes
     """
     Base context class for text conversion.
     """
@@ -103,7 +107,7 @@ class Context(_ContextBase["Context"]):  # pylint: disable=too-many-instance-att
 
     def append(
         self,
-        context: Context,
+        context: _Context,
     ) -> None:
         """
         Append another context to this context.
@@ -148,7 +152,7 @@ class Context(_ContextBase["Context"]):  # pylint: disable=too-many-instance-att
         return "\n".join(self.get_lines())
 
 
-class IndentContext(Context):
+class _IndentContext(_Context):
     """
     Context for things to be indented.
     """
@@ -257,7 +261,7 @@ class _VariableEnumerator(_Enumerator):
         return self.prefixes[index]
 
 
-class ListContext(Context):
+class _ListContext(_Context):
     """
     Context for lists (enumeration, bullet list).
     """
@@ -296,17 +300,18 @@ class ListContext(Context):
         )
 
 
-class DocumentContext(_DocumentContextBase[GlobalContext, Context]):
+class _DocumentContext(_DocumentContextBase[GlobalContext, _Context]):
     """
     Conversion context for a document.
     """
 
-    def __init__(self, global_context: GlobalContext) -> None:
+    def __init__(
+        self, *, global_context: GlobalContext, string_proc: _StringProcessor
+    ) -> None:
         super().__init__(global_context)
         state = _ANSIState() if global_context.use_ansi_formatting else _EmptyState()
-        string_proc = _UnicodeStringProcessor()
         self._contexts.append(
-            Context(
+            _Context(
                 has_top=True,
                 remaining_width=global_context.column_width,
                 state=state,
@@ -329,7 +334,7 @@ def _indent(lines: list[str], *, first_indent: str, next_indent: str) -> None:
 
 class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-public-methods
     def __init__(
-        self, *, table: nodes.table, destination: Context, visitor: _Translator
+        self, *, table: nodes.table, destination: _Context, visitor: _Translator
     ) -> None:
         self.table = table
         self.destination = destination
@@ -359,7 +364,7 @@ class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-pu
         width += (cell.end_col - cell.begin_col) * (1 + 2 * self._horizontal_padding)
 
         # Compute content lines
-        top = Context(
+        top = _Context(
             remaining_width=width,
             state=self.destination.state.clone(),
             string_proc=self.destination.string_proc,
@@ -394,7 +399,7 @@ class _TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-pu
             return []
 
         # Compute content lines
-        top = Context(
+        top = _Context(
             remaining_width=max_width,
             state=self.destination.state.clone(),
             string_proc=self.destination.string_proc,
@@ -652,7 +657,7 @@ def _add_admonitions(
                 # pylint: disable=protected-access
                 self._context.top.main.new_par()
                 self._context.push_context(
-                    IndentContext(
+                    _IndentContext(
                         remaining_width=self._context.top.remaining_width,
                         state=self._context.top.state,
                         string_proc=self._context.top.string_proc,
@@ -714,12 +719,10 @@ def _add_admonitions(
 )
 class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     """
-    Translates a docutils node tree to text in a ``DocumentContext``.
+    Translates a docutils node tree to text in a ``_DocumentContext``.
     """
 
-    _context: DocumentContext
-
-    def __init__(self, document, document_context: DocumentContext):
+    def __init__(self, document, document_context: _DocumentContext):
         super().__init__(document)
         self._context = document_context
 
@@ -838,7 +841,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     def visit_bullet_list(self, node: nodes.bullet_list) -> None:
         self._context.top.main.new_par()
         self._context.push_context(
-            ListContext(
+            _ListContext(
                 enumerator=_ConstEnumerator(
                     prefix="- ", string_proc=self._context.top.string_proc
                 ),
@@ -858,7 +861,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     def visit_enumerated_list(self, node: nodes.enumerated_list) -> None:
         self._context.top.main.new_par()
         self._context.push_context(
-            ListContext(
+            _ListContext(
                 enumerator=_VariableEnumerator(
                     generator=_arabic,
                     count=len(node),
@@ -878,10 +881,10 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
 
     # pylint: disable-next=missing-function-docstring,unused-argument
     def visit_list_item(self, node: nodes.list_item) -> None:
-        list_context = t.cast(ListContext, self._context.top)
+        list_context = t.cast(_ListContext, self._context.top)
         first_indent, next_indent = list_context.get_next_item_indents()
         self._context.push_context(
-            IndentContext(
+            _IndentContext(
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
@@ -901,7 +904,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     def visit_literal_block(self, node: nodes.literal_block) -> None:
         self._context.top.main.new_par()
         self._context.push_context(
-            IndentContext(
+            _IndentContext(
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
@@ -919,7 +922,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     # pylint: disable-next=missing-function-docstring,unused-argument
     def visit_block_quote(self, node: nodes.block_quote) -> None:
         self._context.push_context(
-            IndentContext(
+            _IndentContext(
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
@@ -950,7 +953,7 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
         self._context.top.main.update_state()
         self._context.top.main.new_par()
         self._context.push_context(
-            IndentContext(
+            _IndentContext(
                 first_indent="  ",
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
@@ -968,14 +971,14 @@ class _Translator(nodes.NodeVisitor):  # pylint: disable=too-many-public-methods
     # pylint: disable-next=missing-function-docstring,unused-argument
     def visit_topic(self, node: nodes.topic) -> None:
         # The main use of <topic> elements is for Table of Contents
-        class TopicContext(Context):
+        class _TopicContext(_Context):
             """
             Context for a topic.
             """
 
         self._context.section_depth += 1
         self._context.push_context(
-            TopicContext(
+            _TopicContext(
                 remaining_width=self._context.top.remaining_width,
                 state=self._context.top.state,
                 string_proc=self._context.top.string_proc,
@@ -1049,7 +1052,7 @@ class _TextWriter(writers.Writer):
     Create a text document from a docutils node tree.
     """
 
-    def __init__(self, document_context: DocumentContext):
+    def __init__(self, document_context: _DocumentContext):
         writers.Writer.__init__(self)
         self.document_context = document_context
         self.translator_class = _Translator
@@ -1087,7 +1090,14 @@ def render_as_text(
     """
     if global_context is None:
         global_context = GlobalContext()
-    document_context = DocumentContext(global_context)
+    string_proc = (
+        _UnicodeStringProcessor()
+        if _has_unicode_string_processor()
+        else _ASCIIStringProcessor()
+    )
+    document_context = _DocumentContext(
+        global_context=global_context, string_proc=string_proc
+    )
     # pylint: disable=duplicate-code
     warnings_stream = io.StringIO()
     opts: dict[str, t.Any] = {
