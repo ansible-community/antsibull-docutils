@@ -10,12 +10,10 @@ Code for conversion to MarkDown.
 
 from __future__ import annotations
 
-import io
 import typing as t
 from urllib.parse import quote as _urllib_quote
 
 from docutils import nodes, writers
-from docutils.core import publish_parts
 from docutils.writers.html5_polyglot import HTMLTranslator
 from docutils.writers.html5_polyglot import Writer as HTMLWriter
 
@@ -23,14 +21,10 @@ from ._utils import ContextBase as _ContextBase
 from ._utils import DocumentContextBase as _DocumentContextBase
 from ._utils import add_skip as _add_skip
 from ._utils import add_unsupported_classes as _add_unsupported_classes
+from ._utils import render as _render
 from .html_utils import html_argument_escape, html_escape
 from .md_utils import md_escape
-from .utils import (
-    _PARSER_NAME_ARG,
-    RenderResult,
-    SupportedParser,
-    get_docutils_publish_settings,
-)
+from .utils import RenderResult, SupportedParser
 
 
 class GlobalContext:
@@ -701,27 +695,13 @@ def render_as_markdown(
     if global_context is None:
         global_context = GlobalContext()
     document_context = DocumentContext(global_context)
-    # pylint: disable=duplicate-code
-    warnings_stream = io.StringIO()
-    opts: dict[str, t.Any] = {
-        _PARSER_NAME_ARG: parser_name,
-    }
-    parts = publish_parts(
-        source=source,
+    return _render(
+        source,
+        writer=MarkDownWriter(document_context),
+        get_unknown_node_types=lambda: document_context.unknown_node_types,
+        parser_name=parser_name,
         source_path=source_path,
         destination_path=destination_path,
-        writer=MarkDownWriter(document_context),
-        settings_overrides=get_docutils_publish_settings(
-            warnings_stream=warnings_stream
-        ),
-        **opts,
-    )
-    # pylint: enable=duplicate-code
-    whole = parts["whole"]
-    return RenderResult(
-        whole.decode("utf-8") if isinstance(whole, bytes) else whole,
-        document_context.unknown_node_types,
-        warnings_stream.getvalue().splitlines(),
     )
 
 

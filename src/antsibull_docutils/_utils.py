@@ -12,12 +12,58 @@ from __future__ import annotations
 
 import abc
 import contextlib
+import io
 import typing as t
+from dataclasses import dataclass
 
-from docutils import nodes
+# docutils.__version_info__ exists since docutils 0.14, released in August 2017.
+# Python 3.7 wasn't even out then. I think we can safely ignore versions before that.
+from docutils import __version_info__, nodes, writers
+from docutils.core import publish_parts
+from docutils.utils import Reporter as DocutilsReporter
 
 _Class = t.TypeVar("_Class")
 _GlobalContext = t.TypeVar("_GlobalContext")
+
+_PARSER_NAME_ARG = "parser" if __version_info__ >= (0, 22) else "parser_name"
+
+_DOCUTILS_PUBLISH_SETTINGS = {
+    "input_encoding": "unicode",
+    "file_insertion_enabled": False,
+    "raw_enabled": False,
+    "_disable_config": True,
+    "report_level": DocutilsReporter.ERROR_LEVEL,
+}
+
+SupportedParser = t.Union[t.Literal["restructuredtext"], t.Literal["markdown"]]
+
+
+@dataclass
+class RenderResult:
+    """
+    A rendering result.
+    """
+
+    # The output of the renderer.
+    output: str
+
+    # The set of class names found that weren't supported by this renderer.
+    unsupported_class_names: set[str]
+
+    # List of warnings emitted
+    warnings: list[str]
+
+
+def get_docutils_publish_settings(
+    *,
+    warnings_stream: io.IOBase | None = None,
+) -> dict[str, t.Any]:
+    """
+    Provide docutils publish settings.
+    """
+    settings = _DOCUTILS_PUBLISH_SETTINGS.copy()
+    settings["warning_stream"] = warnings_stream or False
+    return settings
 
 
 def add_unsupported_classes(clazz: _Class) -> _Class:
@@ -150,3 +196,37 @@ class DocumentContextBase(t.Generic[_GlobalContext, _Context]):
                     f" expected {new_length}!"
                 )
             self._contexts.pop()
+
+
+def render(  # pylint: disable=too-many-positional-arguments
+    source: str,
+    /,
+    parser_name: SupportedParser,
+    writer: writers.Writer | None,
+    get_unknown_node_types: t.Callable[[], set[str]],
+    source_path: str | None,
+    destination_path: str | None,
+) -> RenderResult:
+    """
+    Render ``source`` with the given writer.
+    """
+    warnings_stream = io.StringIO()
+    opts: dict[str, t.Any] = {
+        _PARSER_NAME_ARG: parser_name,
+    }
+    parts = publish_parts(
+        source=source,
+        source_path=source_path,
+        destination_path=destination_path,
+        writer=writer,
+        settings_overrides=get_docutils_publish_settings(
+            warnings_stream=warnings_stream
+        ),
+        **opts,
+    )
+    whole = parts["whole"]
+    return RenderResult(
+        whole.decode("utf-8") if isinstance(whole, bytes) else whole,
+        get_unknown_node_types(),
+        warnings_stream.getvalue().splitlines(),
+    )

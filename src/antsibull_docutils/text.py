@@ -11,12 +11,10 @@ Code for conversion to (formatted) plain text.
 from __future__ import annotations
 
 import abc
-import io
 import math
 import typing as t
 
 from docutils import nodes, writers
-from docutils.core import publish_parts
 
 from ._collector import ANSIState as _ANSIState
 from ._collector import Collector as _Collector
@@ -33,12 +31,8 @@ from ._utils import ContextBase as _ContextBase
 from ._utils import DocumentContextBase as _DocumentContextBase
 from ._utils import add_skip as _add_skip
 from ._utils import add_unsupported_classes as _add_unsupported_classes
-from .utils import (
-    _PARSER_NAME_ARG,
-    RenderResult,
-    SupportedParser,
-    get_docutils_publish_settings,
-)
+from ._utils import render as _render
+from .utils import RenderResult, SupportedParser
 
 _Class = t.TypeVar("_Class")
 
@@ -58,7 +52,7 @@ class GlobalContext:  # pylint: disable=too-few-public-methods
     use_unicode_splitting: UseUnicodeSplittingType = "auto"
 
 
-def get_formatting_state(global_context: GlobalContext) -> _State:
+def _get_formatting_state(global_context: GlobalContext) -> _State:
     """
     Get formatting state for the given global context.
     """
@@ -69,7 +63,7 @@ def get_formatting_state(global_context: GlobalContext) -> _State:
     )
 
 
-def get_string_proc(global_context: GlobalContext) -> _StringProcessor:
+def _get_string_proc(global_context: GlobalContext) -> _StringProcessor:
     """
     Get string processor for the given global context.
     """
@@ -351,12 +345,11 @@ class _DocumentContext(_DocumentContextBase[GlobalContext, _Context]):
         self, *, global_context: GlobalContext, string_proc: _StringProcessor
     ) -> None:
         super().__init__(global_context)
-        state = get_formatting_state(global_context)
         self._contexts.append(
             _Context(
                 has_top=True,
                 remaining_width=global_context.column_width,
-                state=state,
+                state=_get_formatting_state(global_context),
                 string_proc=string_proc,
             )
         )
@@ -1095,6 +1088,59 @@ class _TextWriter(writers.Writer):
         self.output = translator.get_text()
 
 
+def get_column_count(text: str, *, global_context: GlobalContext) -> int:
+    """
+    Compute the column count of a text without newlines.
+    """
+    string_proc = _get_string_proc(global_context)
+    return string_proc.get_column_count(text=text)
+
+
+def render_bold(line: str, *, global_context: GlobalContext) -> str:
+    """
+    Render a line in bold.
+    """
+    # Get formatting prefix/suffix
+    state = _get_formatting_state(global_context)
+    state.push_formatting(_Formatting.BOLD)
+    s = state.get_state()
+    prefix = state.get_start_of_line(s)
+    suffix = state.get_end_of_line(s)
+
+    # Compose result
+    return f"{prefix}{line}{suffix}"
+
+
+def render_title(title: str, *, level: int, global_context: GlobalContext) -> list[str]:
+    """
+    Render a title.
+
+    ``level`` must be 1 or larger.
+    """
+    assert level >= 1
+
+    # Get formatting prefix/suffix
+    state = _get_formatting_state(global_context)
+    state.push_formatting(_Formatting.BOLD)
+    s = state.get_state()
+    prefix = state.get_start_of_line(s)
+    suffix = state.get_end_of_line(s)
+
+    # Compute underline
+    string_proc = _get_string_proc(global_context)
+    sep = global_context.title_headings[level - 1]
+    underline = sep * math.ceil(
+        string_proc.get_column_count(text=title)
+        / string_proc.get_column_count(text=sep)
+    )
+
+    # Compose result
+    return [
+        f"{prefix}{title}{suffix}",
+        f"{prefix}{underline}{suffix}",
+    ]
+
+
 def render_as_text(
     source: str,
     /,
@@ -1119,35 +1165,24 @@ def render_as_text(
     if global_context is None:
         global_context = GlobalContext()
     document_context = _DocumentContext(
-        global_context=global_context, string_proc=get_string_proc(global_context)
+        global_context=global_context, string_proc=_get_string_proc(global_context)
     )
-    # pylint: disable=duplicate-code
-    warnings_stream = io.StringIO()
-    opts: dict[str, t.Any] = {
-        _PARSER_NAME_ARG: parser_name,
-    }
-    parts = publish_parts(
-        source=source,
+    return _render(
+        source,
+        writer=_TextWriter(document_context),
+        get_unknown_node_types=lambda: document_context.unknown_node_types,
+        parser_name=parser_name,
         source_path=source_path,
         destination_path=destination_path,
-        writer=_TextWriter(document_context),
-        settings_overrides=get_docutils_publish_settings(
-            warnings_stream=warnings_stream
-        ),
-        **opts,
     )
-    whole = parts["whole"]
-    return RenderResult(
-        whole.decode("utf-8") if isinstance(whole, bytes) else whole,
-        document_context.unknown_node_types,
-        warnings_stream.getvalue().splitlines(),
-    )
-    # pylint: enable=duplicate-code
 
 
 __all__ = (
     "GlobalContext",
     "UseAnsiFormattingType",
     "UseUnicodeSplittingType",
+    "get_column_count",
     "render_as_text",
+    "render_bold",
+    "render_title",
 )
