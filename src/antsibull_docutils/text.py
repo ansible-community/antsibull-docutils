@@ -43,6 +43,10 @@ from .utils import (
 _Class = t.TypeVar("_Class")
 
 
+UseAnsiFormattingType = t.Literal["always", "never"]
+UseUnicodeSplittingType = t.Literal["always", "never", "auto"]
+
+
 class GlobalContext:  # pylint: disable=too-few-public-methods
     """
     The global conversion context.
@@ -50,8 +54,33 @@ class GlobalContext:  # pylint: disable=too-few-public-methods
 
     title_headings: str = """═━─┉┅┈┄-~.+`'"_"""
     column_width: int = 80
-    use_ansi_formatting: bool = True
-    use_unicode_splitting: t.Literal["always", "never", "auto"] = "auto"
+    use_ansi_formatting: UseAnsiFormattingType = "always"
+    use_unicode_splitting: UseUnicodeSplittingType = "auto"
+
+
+def get_formatting_state(global_context: GlobalContext) -> _State:
+    """
+    Get formatting state for the given global context.
+    """
+    return (
+        _ANSIState()
+        if global_context.use_ansi_formatting == "always"
+        else _EmptyState()
+    )
+
+
+def get_string_proc(global_context: GlobalContext) -> _StringProcessor:
+    """
+    Get string processor for the given global context.
+    """
+    if (
+        global_context.use_unicode_splitting == "auto"
+        and _has_unicode_string_processor()
+    ):
+        return _UnicodeStringProcessor()
+    if global_context.use_unicode_splitting == "always":
+        return _UnicodeStringProcessor()
+    return _ASCIIStringProcessor()
 
 
 class _Context(
@@ -322,7 +351,7 @@ class _DocumentContext(_DocumentContextBase[GlobalContext, _Context]):
         self, *, global_context: GlobalContext, string_proc: _StringProcessor
     ) -> None:
         super().__init__(global_context)
-        state = _ANSIState() if global_context.use_ansi_formatting else _EmptyState()
+        state = get_formatting_state(global_context)
         self._contexts.append(
             _Context(
                 has_top=True,
@@ -1089,16 +1118,8 @@ def render_as_text(
     """
     if global_context is None:
         global_context = GlobalContext()
-    string_proc: _StringProcessor = _ASCIIStringProcessor()
-    if (
-        global_context.use_unicode_splitting == "auto"
-        and _has_unicode_string_processor()
-    ):
-        string_proc = _UnicodeStringProcessor()
-    if global_context.use_unicode_splitting == "always":
-        string_proc = _UnicodeStringProcessor()
     document_context = _DocumentContext(
-        global_context=global_context, string_proc=string_proc
+        global_context=global_context, string_proc=get_string_proc(global_context)
     )
     # pylint: disable=duplicate-code
     warnings_stream = io.StringIO()
@@ -1124,4 +1145,9 @@ def render_as_text(
     # pylint: enable=duplicate-code
 
 
-__all__ = ("GlobalContext", "render_as_text")
+__all__ = (
+    "GlobalContext",
+    "UseAnsiFormattingType",
+    "UseUnicodeSplittingType",
+    "render_as_text",
+)
