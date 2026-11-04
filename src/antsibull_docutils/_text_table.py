@@ -55,6 +55,7 @@ class TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-pub
         self._vertical_padding = 0
 
     def _get_maximum_column_widths(self) -> list[int]:
+        # pylint: disable-next=fixme
         # TODO: use values in self.col_specs
         cols = len(self.col_specs)
         frame_width = cols * (1 + 2 * self._horizontal_padding) + 1
@@ -300,6 +301,7 @@ class TableRenderer:  # pylint: disable=too-many-instance-attributes,too-few-pub
         act_col_widths = [0] * len(max_col_widths)
         for cell in self.cells:
             cell_width = self._prerender_cell(cell=cell, max_col_widths=max_col_widths)
+            # pylint: disable-next=fixme
             # TODO: do this more weighted to avoid unnecessary space for a column
             col_width = math.ceil(cell_width / (cell.end_col - cell.begin_col + 1))
             for col in range(cell.begin_col, cell.end_col + 1):
