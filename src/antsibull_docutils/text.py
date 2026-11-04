@@ -10,14 +10,12 @@ Code for conversion to (formatted) plain text.
 
 from __future__ import annotations
 
-import abc
 import math
 import typing as t
 
 from docutils import nodes, writers
 
 from ._collector import ANSIState as _ANSIState
-from ._collector import Collector as _Collector
 from ._collector import EmptyState as _EmptyState
 from ._collector import Formatting as _Formatting
 from ._collector import State as _State
@@ -27,7 +25,12 @@ from ._string import UnicodeStringProcessor as _UnicodeStringProcessor
 from ._string import has_unicode_string_processor as _has_unicode_string_processor
 from ._table import Cell as _Cell
 from ._table import TableHelper as _TableHelper
-from ._utils import ContextBase as _ContextBase
+from ._text_context import ConstEnumerator as _ConstEnumerator
+from ._text_context import Context as _Context
+from ._text_context import IndentContext as _IndentContext
+from ._text_context import ListContext as _ListContext
+from ._text_context import VariableEnumerator as _VariableEnumerator
+from ._text_context import arabic as _arabic
 from ._utils import DocumentContextBase as _DocumentContextBase
 from ._utils import add_skip as _add_skip
 from ._utils import add_unsupported_classes as _add_unsupported_classes
@@ -75,265 +78,6 @@ def _get_string_proc(global_context: GlobalContext) -> _StringProcessor:
     if global_context.use_unicode_splitting == "always":
         return _UnicodeStringProcessor()
     return _ASCIIStringProcessor()
-
-
-class _Context(
-    _ContextBase["_Context"]
-):  # pylint: disable=too-many-instance-attributes
-    """
-    Base context class for text conversion.
-    """
-
-    def __init__(
-        self,
-        *,
-        remaining_width: int,
-        state: _State,
-        string_proc: _StringProcessor,
-        has_top: bool = False,
-        ignore_newlines: bool = True,
-    ) -> None:
-        self.remaining_width = remaining_width
-        self.top_state = state.clone()
-        self.state = state.clone()
-        self.string_proc = string_proc
-        self._has_top = has_top
-        self._top = _Collector(
-            width=self.remaining_width,
-            state=self.top_state,
-            string_proc=self.string_proc,
-            ignore_newlines=ignore_newlines,
-        )
-        self._main = _Collector(
-            width=self.remaining_width,
-            state=self.state,
-            string_proc=self.string_proc,
-            ignore_newlines=ignore_newlines,
-        )
-        self._result_top: list[str] | None = None
-        self._result_main: list[str] | None = None
-
-    @property
-    def top(self) -> _Collector:
-        """
-        Get hold of top collector.
-        """
-        if not self._has_top:
-            raise ValueError("Context has no top part")
-        return self._top
-
-    @property
-    def main(self) -> _Collector:
-        """
-        Get hold of main collector.
-        """
-        return self._main
-
-    def append(
-        self,
-        context: _Context,
-    ) -> None:
-        """
-        Append another context to this context.
-        """
-        # pylint: disable-next=protected-access
-        if context._result_top is None or context._result_main is None:
-            raise ValueError("Context is not closed!")
-        if context._has_top:  # pylint: disable=protected-access
-            if not self._has_top:
-                raise ValueError("Context has no top part")
-            self._top.add_raw_lines(
-                context._result_top  # pylint: disable=protected-access
-            )
-        self._main.add_raw_lines(
-            context._result_main  # pylint: disable=protected-access
-        )
-
-    def close(self) -> None:
-        """
-        Close the context.
-
-        Should be called before using its value / content, for example by
-        passing it to ``append()`` or calling ``get_text()``.
-        """
-        if self._result_main is not None or self._result_top is not None:
-            raise ValueError("Context is already closed!")
-        self._result_top = self._top.close()
-        self._result_main = self._main.close()
-
-    def get_lines(self) -> list[str]:
-        """
-        Return the content of the context as a list of lines.
-        """
-        if self._result_main is None or self._result_top is None:
-            raise ValueError("Context is not closed!")
-        return self._result_top + self._result_main
-
-    def get_text(self) -> str:
-        """
-        Return the content of the context as a string.
-        """
-        return "\n".join(self.get_lines())
-
-
-def _indent(lines: list[str], *, first_indent: str, next_indent: str) -> None:
-    while lines and lines[0] == "":
-        del lines[0]
-    while lines and lines[-1] == "":
-        del lines[-1]
-    for i, line in enumerate(lines):
-        if i == 0:
-            lines[i] = f"{first_indent}{line}".rstrip(" ")
-        else:
-            lines[i] = f"{next_indent}{line}".rstrip(" ")
-
-
-class _IndentContext(_Context):
-    """
-    Context for things to be indented.
-    """
-
-    def __init__(
-        self,
-        *,
-        first_indent: str,
-        next_indent: str | None = None,
-        remaining_width: int,
-        state: _State,
-        string_proc: _StringProcessor,
-        at_least_one_line: bool = False,
-        ignore_newlines: bool = True,
-    ):
-        indent_columns = string_proc.get_column_count(text=first_indent)
-        super().__init__(
-            remaining_width=remaining_width - indent_columns,
-            state=state,
-            string_proc=string_proc,
-            ignore_newlines=ignore_newlines,
-        )
-        self.first_indent = first_indent
-        self.next_indent = " " * indent_columns if next_indent is None else next_indent
-        self.at_least_one_line = at_least_one_line
-
-    def close(self) -> None:
-        super().close()
-        assert self._result_main is not None
-        _indent(
-            self._result_main,
-            first_indent=self.first_indent,
-            next_indent=self.next_indent,
-        )
-        if self.at_least_one_line and not self._result_main:
-            self._result_main.append(self.first_indent.rstrip())
-
-
-class _Enumerator(metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def get_maximal_length(self) -> int:
-        """
-        Return the maximum indentation length.
-        """
-
-    @abc.abstractmethod
-    def get_next_first_indent(self) -> str:
-        """
-        Generates a new first indent.
-        Must be called exactly as many times as defined.
-        """
-
-
-class _ConstEnumerator(_Enumerator):
-    def __init__(self, *, prefix: str, string_proc: _StringProcessor) -> None:
-        self.prefix = prefix
-        self.string_proc = string_proc
-
-    def get_maximal_length(self) -> int:
-        """
-        Return the maximum indentation length.
-        """
-        return self.string_proc.get_column_count(text=self.prefix)
-
-    def get_next_first_indent(self) -> str:
-        """
-        Generates a new first indent.
-        Must be called exactly as many times as defined.
-        """
-        return self.prefix
-
-
-def _arabic(index: int) -> str:
-    return f"{index + 1}. "
-
-
-class _VariableEnumerator(_Enumerator):
-    def __init__(
-        self,
-        *,
-        generator: t.Callable[[int], str],
-        count: int,
-        string_proc: _StringProcessor,
-    ) -> None:
-        self.index = 0
-        self.prefixes = [generator(i) for i in range(count)]
-        self.max_length = (
-            max(string_proc.get_column_count(text=elt) for elt in self.prefixes)
-            if self.prefixes
-            else 0
-        )
-
-    def get_maximal_length(self) -> int:
-        """
-        Return the maximum indentation length.
-        """
-        return self.max_length
-
-    def get_next_first_indent(self) -> str:
-        """
-        Generates a new first indent.
-        Must be called exactly as many times as defined.
-        """
-        index = self.index
-        self.index += 1
-        return self.prefixes[index]
-
-
-class _ListContext(_Context):
-    """
-    Context for lists (enumeration, bullet list).
-    """
-
-    def __init__(
-        self,
-        *,
-        enumerator: _Enumerator,
-        remaining_width: int,
-        state: _State,
-        string_proc: _StringProcessor,
-    ):
-        max_length = enumerator.get_maximal_length()
-        super().__init__(
-            remaining_width=remaining_width - max_length,
-            state=state,
-            string_proc=string_proc,
-        )
-        self.enumerator = enumerator
-        self.max_length = max_length
-
-    def get_next_item_indents(self) -> tuple[str, str]:
-        """
-        Retrieve the ``(first_indent, next_indent)`` pair for the next list item.
-        """
-        first_indent = self.enumerator.get_next_first_indent()
-        indent_length = self.string_proc.get_column_count(text=first_indent)
-        if indent_length > self.max_length:
-            raise RuntimeError(  # pragma: no cover
-                f"Expected a maximum indent column count of {self.max_length},"
-                f" but got {first_indent!r} of column count {indent_length}"
-            )
-        return (
-            first_indent + " " * (self.max_length - indent_length),
-            " " * self.max_length,
-        )
 
 
 class _DocumentContext(_DocumentContextBase[GlobalContext, _Context]):

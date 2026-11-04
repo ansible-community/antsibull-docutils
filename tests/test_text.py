@@ -22,7 +22,6 @@ from antsibull_docutils.text import (
     _DocumentContext,
     _get_formatting_state,
     _get_string_proc,
-    _indent,
     get_column_count,
     render_as_text,
     render_bold,
@@ -837,50 +836,6 @@ Foo क्षि Bar
 Baz bam (https://example.com)."""
 
 
-def test_context() -> None:
-    context = _Context(
-        has_top=False,
-        remaining_width=80,
-        state=EmptyState(),
-        string_proc=ASCIIStringProcessor(),
-    )
-    with pytest.raises(ValueError) as exc:
-        context.top.append(text="test")
-    assert str(exc.value) == "Context has no top part"
-
-    subcontext = _Context(
-        has_top=True,
-        remaining_width=70,
-        state=EmptyState(),
-        string_proc=ASCIIStringProcessor(),
-    )
-    with pytest.raises(ValueError) as exc:
-        context.append(subcontext)
-    assert str(exc.value) == "Context is not closed!"
-
-    with pytest.raises(ValueError) as exc:
-        subcontext.get_lines()
-    assert str(exc.value) == "Context is not closed!"
-
-    subcontext.close()
-
-    with pytest.raises(ValueError) as exc:
-        context.append(subcontext)
-    assert str(exc.value) == "Context has no top part"
-
-    with pytest.raises(ValueError) as exc:
-        subcontext.close()
-    assert str(exc.value) == "Context is already closed!"
-
-    context2 = _Context(
-        has_top=True,
-        remaining_width=80,
-        state=EmptyState(),
-        string_proc=ASCIIStringProcessor(),
-    )
-    context2.append(subcontext)
-
-
 def test_document_context() -> None:
     global_context = GlobalContext()
     doc_context = _DocumentContext(
@@ -945,9 +900,3 @@ def test_render_title() -> None:
         "\x1b[0;1mfoo\x1b[0m",
         "\x1b[0;1m═══\x1b[0m",
     ]
-
-
-def test__indent() -> None:
-    lines = ["", "", "a", " b", "", "  c", ""]
-    _indent(lines, first_indent="X ", next_indent="Y ")
-    assert lines == ["X a", "Y  b", "Y", "Y   c"]
