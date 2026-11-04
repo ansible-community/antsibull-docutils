@@ -14,13 +14,19 @@ import typing as t
 
 import pytest
 
-from antsibull_docutils._collector import EmptyState
-from antsibull_docutils._string import ASCIIStringProcessor
+from antsibull_docutils._collector import ANSIState, EmptyState
+from antsibull_docutils._string import ASCIIStringProcessor, UnicodeStringProcessor
 from antsibull_docutils.text import (
     GlobalContext,
     _Context,
     _DocumentContext,
+    _get_formatting_state,
+    _get_string_proc,
+    _indent,
+    get_column_count,
     render_as_text,
+    render_bold,
+    render_title,
 )
 from antsibull_docutils.utils import get_document_structure
 
@@ -811,6 +817,26 @@ def test_render_as_text(
     assert result.unsupported_class_names == expected_unsupported_class_names
 
 
+def test_render_as_text_2() -> None:
+    global_context = GlobalContext()
+    global_context.use_ansi_formatting = "never"
+    global_context.use_unicode_splitting = "never"
+    input = """
+=========
+Foo क्षि Bar
+=========
+
+`Baz bam <https://example.com>`__.
+"""
+    result = render_as_text(
+        input, global_context=global_context, parser_name="restructuredtext"
+    )
+    assert result.output == """Foo क्षि Bar
+════════════
+
+Baz bam (https://example.com)."""
+
+
 def test_context() -> None:
     context = _Context(
         has_top=False,
@@ -875,3 +901,53 @@ def test_document_context() -> None:
     doc_context.pop_context()
 
     assert doc_context.top is previous_top
+
+
+def test__get_formatting_state() -> None:
+    global_context = GlobalContext()
+    global_context.use_ansi_formatting = "always"
+    assert isinstance(_get_formatting_state(global_context), ANSIState)
+    global_context.use_ansi_formatting = "never"
+    assert isinstance(_get_formatting_state(global_context), EmptyState)
+
+
+def test__get_string_proc() -> None:
+    global_context = GlobalContext()
+    global_context.use_unicode_splitting = "always"
+    assert isinstance(_get_string_proc(global_context), UnicodeStringProcessor)
+    global_context.use_unicode_splitting = "never"
+    assert isinstance(_get_string_proc(global_context), ASCIIStringProcessor)
+
+
+def test_get_column_count() -> None:
+    global_context = GlobalContext()
+    global_context.use_unicode_splitting = "never"
+    assert get_column_count("क्षि", global_context=global_context) == 4
+    global_context.use_unicode_splitting = "always"
+    assert get_column_count("क्षि", global_context=global_context) == 3
+
+
+def test_render_bold() -> None:
+    global_context = GlobalContext()
+    global_context.use_ansi_formatting = "never"
+    assert render_bold("foo", global_context=global_context) == "foo"
+    global_context.use_ansi_formatting = "always"
+    assert render_bold("foo", global_context=global_context) == "\x1b[0;1mfoo\x1b[0m"
+
+
+def test_render_title() -> None:
+    global_context = GlobalContext()
+    global_context.use_ansi_formatting = "never"
+    assert render_title("foo", level=1, global_context=global_context) == ["foo", "═══"]
+    assert render_title("foo", level=2, global_context=global_context) == ["foo", "━━━"]
+    global_context.use_ansi_formatting = "always"
+    assert render_title("foo", level=1, global_context=global_context) == [
+        "\x1b[0;1mfoo\x1b[0m",
+        "\x1b[0;1m═══\x1b[0m",
+    ]
+
+
+def test__indent() -> None:
+    lines = ["", "", "a", " b", "", "  c", ""]
+    _indent(lines, first_indent="X ", next_indent="Y ")
+    assert lines == ["X a", "Y  b", "Y", "Y   c"]
