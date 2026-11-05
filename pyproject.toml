@@ -46,6 +46,19 @@ dependencies = [
 "Changelog" = "https://github.com/ansible-community/antsibull-docutils/tree/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+
+unicode = [
+    "graphemeu >= 0.8.0; python_version < '3.15'",
+]
+
+all = [
+    "antsibull-docutils[unicode]",
+]
+
+#
+# Development. Not user facing.
+#
+
 codeqa = [
     "antsibull-changelog",
     "flake8 >= 3.8.0",
@@ -98,6 +111,7 @@ mypy_path = "stubs/"
 
 [[tool.mypy.overrides]]
 module = [
+    "grapheme",
     "pytest",
 ]
 ignore_missing_imports = true

@@ -15,3 +15,4 @@ ignore = E203, W503
 per-file-ignores =
     tests/test_markdown.py:E501
     tests/test_rst_code_finder.py:E501,W291,W293
+    tests/test_text.py:E501

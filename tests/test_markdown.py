@@ -845,6 +845,7 @@ def test_context() -> None:
     assert str(exc.value) == "Context has no top part"
 
     subcontext = Context(has_top=True)
+    subcontext.close()
     with pytest.raises(ValueError) as exc:
         context.append(subcontext)
     assert str(exc.value) == "Context has no top part"
