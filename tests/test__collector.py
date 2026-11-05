@@ -115,6 +115,15 @@ TEST_EMPTYSTATE_COLLECTOR_DATA: list[tuple[list[InputElt], int, bool, list[str]]
     ),
     (
         [
+            "Hello wor",
+            "ld!",
+        ],
+        10,
+        False,
+        ["Hello", "world!"],
+    ),
+    (
+        [
             ("new-line",),
             ("new-line",),
             ("new-par",),
