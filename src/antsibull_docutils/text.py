@@ -306,12 +306,15 @@ class _Translator(
 
     # Node: reference
 
-    # pylint: disable-next=missing-function-docstring
+    # pylint: disable-next=missing-function-docstring,unused-argument
     def visit_reference(self, node: nodes.reference) -> None:
-        pass
+        self._context.top.state.push_formatting(_Formatting.UNDERLINE)
+        self._context.top.main.update_state()
 
     # pylint: disable-next=missing-function-docstring
     def depart_reference(self, node: nodes.reference) -> None:
+        self._context.top.state.pop_formatting(_Formatting.UNDERLINE)
+        self._context.top.main.update_state()
         if "refuri" in node.attributes:
             url: str = node.attributes["refuri"]
         elif "refid" in node.attributes:
@@ -323,7 +326,13 @@ class _Translator(
             )
         if node.astext() == url:
             return
-        self._context.top.main.append(text=f" ({url})")
+        self._context.top.main.append(text=" (")
+        self._context.top.state.push_formatting(_Formatting.UNDERLINE)
+        self._context.top.main.update_state()
+        self._context.top.main.append(text=url)
+        self._context.top.state.pop_formatting(_Formatting.UNDERLINE)
+        self._context.top.main.update_state()
+        self._context.top.main.append(text=")")
 
     # Node: bullet_list
 

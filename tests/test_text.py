@@ -50,14 +50,14 @@ RENDER_AS_TEXT_AND_STRUCTURE_DATA: list[
         "link",
         "`foo <bar>`__",
         "restructuredtext",
-        "foo (bar)",
+        "\x1b[0;4mfoo\x1b[0m (\x1b[0;4mbar\x1b[0m)",
         set(),
     ),
     (
         "url",
         "https://example.com/foo https://example.com/~foo%20bar?a=b&c=d+e",
         "restructuredtext",
-        "https://example.com/foo https://example.com/~foo%20bar?a=b&c=d+e",
+        "\x1b[0;4mhttps://example.com/foo\x1b[0m \x1b[0;4mhttps://example.com/~foo%20bar?a=b&c=d+e\x1b[0m",
         set(),
     ),
     (
@@ -254,10 +254,10 @@ A line.
         """\x1b[0;1mTest doc\x1b[0m
 \x1b[0;1m════════\x1b[0m
 
-- Test section
+- \x1b[0;4mTest section\x1b[0m
 
-  - Test subsection
-- Another section
+  - \x1b[0;4mTest subsection\x1b[0m
+- \x1b[0;4mAnother section\x1b[0m
 
 A test document.
 
@@ -277,7 +277,7 @@ Another code block:
 \x1b[0;1mTest subsection\x1b[0m
 \x1b[0;1m───────────────\x1b[0m
 
-Linking the label.
+Linking the \x1b[0;4mlabel\x1b[0m.
 
   def f():
       return 42
@@ -380,7 +380,7 @@ This is a table:
         "simple-rst",
         r"""`This` *is* **a** `simple <This>`_ `test <https://example.com>`__.""",
         "restructuredtext",
-        """\x1b[0;3mThis\x1b[0m \x1b[0;3mis\x1b[0m \x1b[0;1ma\x1b[0m simple (This) test (https://example.com).""",
+        "\x1b[0;3mThis\x1b[0m \x1b[0;3mis\x1b[0m \x1b[0;1ma\x1b[0m \x1b[0;4msimple\x1b[0m (\x1b[0;4mThis\x1b[0m) \x1b[0;4mtest\x1b[0m (\x1b[0;4mhttps://example.com\x1b[0m).",
         set(),
     ),
     (
@@ -490,20 +490,20 @@ Some text.
 \x1b[0;1mTable of Contents\x1b[0m
 \x1b[0;1m━━━━━━━━━━━━━━━━━\x1b[0m
 
-- 1\xa0\xa0\xa0This is a subtitle
-- 2\xa0\xa0\xa0Another subtitle
+- \x1b[0;4m1\xa0\xa0\xa0This is a subtitle\x1b[0m
+- \x1b[0;4m2\xa0\xa0\xa0Another subtitle\x1b[0m
 
-  - 2.1\xa0\xa0\xa0A sub-sub-title
-  - 2.2\xa0\xa0\xa0A sub-sub-title
+  - \x1b[0;4m2.1\xa0\xa0\xa0A sub-sub-title\x1b[0m
+  - \x1b[0;4m2.2\xa0\xa0\xa0A sub-sub-title\x1b[0m
 
 \x1b[0;1m1\xa0\xa0\xa0This is a subtitle\x1b[0m
 \x1b[0;1m━━━━━━━━━━━━━━━━━━━━━━\x1b[0m
 
 Some test with `code`. Some \x1b[0;3memphasis\x1b[0m and \x1b[0;1mbold\x1b[0m text.
 
-A link (https://ansible.com/)).
+A \x1b[0;4mlink\x1b[0m (\x1b[0;4mhttps://ansible.com/)\x1b[0m).
 
-A reference (label).
+A \x1b[0;4mreference\x1b[0m (\x1b[0;4mlabel\x1b[0m).
 
 A list:
 
