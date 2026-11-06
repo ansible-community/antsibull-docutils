@@ -42,12 +42,13 @@ def test_ASCIIStringProcessor_get_column_count(
 
 
 TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
-    tuple[str, int, int, bool, str, int, str, int, str]
+    tuple[str, int, int, bool, bool, str, int, str, int, str]
 ] = [
     (
         "",
         10,
         20,
+        False,
         False,
         "",
         0,
@@ -59,6 +60,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         "  ",
         10,
         20,
+        False,
         False,
         "",
         0,
@@ -71,6 +73,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "",
         0,
         "  ",
@@ -81,6 +84,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         "foobarbazbam  ",
         10,
         20,
+        False,
         True,
         "foobarbazbam",
         12,
@@ -92,6 +96,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         "foobarbazbam  baz",
         10,
         20,
+        False,
         True,
         "foobarbazbam  baz",
         17,
@@ -103,6 +108,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         "foobarbazbam  bambazfoobar",
         10,
         20,
+        False,
         True,
         "foobarbazbam",
         12,
@@ -115,6 +121,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "Hello foo!",
         10,
         "",
@@ -125,6 +132,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         "Hello foo!  ",
         10,
         20,
+        False,
         False,
         "Hello foo!",
         10,
@@ -137,6 +145,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "Hello",
         5,
         "  ",
@@ -147,6 +156,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         "       foo!",
         10,
         20,
+        False,
         False,
         "",
         0,
@@ -159,6 +169,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "Hello",
         5,
         " ",
@@ -170,6 +181,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         10,
         False,
+        False,
         "Helloworld",
         10,
         "",
@@ -180,6 +192,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         "Helloworld!",
         10,
         20,
+        False,
         True,
         "Helloworld!",
         11,
@@ -191,6 +204,7 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         "Helloworld!  ",
         10,
         20,
+        False,
         True,
         "Helloworld!",
         11,
@@ -198,18 +212,44 @@ TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA: list[
         2,
         "",
     ),
+    (
+        "Hello wor",
+        10,
+        20,
+        False,
+        False,
+        "Hello wor",
+        9,
+        "",
+        0,
+        "",
+    ),
+    (
+        "Hello wor",
+        10,
+        20,
+        True,
+        False,
+        "Hello",
+        5,
+        " ",
+        1,
+        "wor",
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    "text, remaining_columns, total_columns, expected_newline, expected_text,"
-    " expected_text_columns, expected_space, expected_space_columns, expected_remainder",
+    "text, remaining_columns, total_columns, keep_nonseparable_end, expected_newline,"
+    " expected_text, expected_text_columns, expected_space, expected_space_columns,"
+    " expected_remainder",
     TEST_ASCII_STRING_PROCESSOR_SPLIT_DATA,
 )
 def test_ASCIIStringProcessor_split(
     text: str,
     remaining_columns: int,
     total_columns: int,
+    keep_nonseparable_end: bool,
     expected_newline: bool,
     expected_text: str,
     expected_text_columns: int,
@@ -219,7 +259,10 @@ def test_ASCIIStringProcessor_split(
 ) -> None:
     proc = ASCIIStringProcessor()
     newline, text, text_columns, space, space_columns, remainder = proc.split(
-        text=text, remaining_columns=remaining_columns, total_columns=total_columns
+        text=text,
+        remaining_columns=remaining_columns,
+        total_columns=total_columns,
+        keep_nonseparable_end=keep_nonseparable_end,
     )
     print(
         newline, repr(text), text_columns, repr(space), space_columns, repr(remainder)
@@ -278,12 +321,13 @@ def test_UnicodeStringProcessor_get_column_count(
 
 
 TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
-    tuple[str, int, int, bool, str, int, str, int, str]
+    tuple[str, int, int, bool, bool, str, int, str, int, str]
 ] = [
     (
         "",
         10,
         20,
+        False,
         False,
         "",
         0,
@@ -295,6 +339,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "  ",
         10,
         20,
+        False,
         False,
         "",
         0,
@@ -307,6 +352,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "",
         0,
         "  ",
@@ -317,6 +363,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "foobarbazbam  ",
         10,
         20,
+        False,
         True,
         "foobarbazbam",
         12,
@@ -328,6 +375,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "foobarbazbam  baz",
         10,
         20,
+        False,
         True,
         "foobarbazbam  baz",
         17,
@@ -339,6 +387,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "foobarbazbam  bambazfoobar",
         10,
         20,
+        False,
         True,
         "foobarbazbam",
         12,
@@ -351,6 +400,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "Hello foo!",
         10,
         "",
@@ -361,6 +411,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "Hello foo!  ",
         10,
         20,
+        False,
         False,
         "Hello foo!",
         10,
@@ -373,6 +424,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "Hello",
         5,
         "  ",
@@ -383,6 +435,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "       foo!",
         10,
         20,
+        False,
         False,
         "",
         0,
@@ -395,6 +448,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "Hello",
         5,
         " ",
@@ -406,6 +460,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         10,
         False,
+        False,
         "Helloworld",
         10,
         "",
@@ -416,6 +471,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "Helloworld!",
         10,
         20,
+        False,
         True,
         "Helloworld!",
         11,
@@ -427,6 +483,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "Helloworld!  ",
         10,
         20,
+        False,
         True,
         "Helloworld!",
         11,
@@ -439,6 +496,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         10,
         20,
         False,
+        False,
         "Hello-",
         6,
         "",
@@ -449,6 +507,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "Hello\u00adworld!  ",
         10,
         20,
+        False,
         False,
         "Hello-",
         6,
@@ -461,6 +520,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         1,
         1,
         False,
+        False,
         "x",
         1,
         "",
@@ -472,6 +532,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         1,
         1,
         False,
+        False,
         "x",
         1,
         "",
@@ -482,6 +543,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "\u00adx\u00adx",
         1,
         2,
+        False,
         True,
         "xx",
         2,
@@ -495,6 +557,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "நிx",  # Tamil ni grapheme (two codeopints)
         1,
         2,
+        False,
         True,
         "நி",
         2,
@@ -506,6 +569,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "กำx",  # Thai kam grapheme (two codepoints)
         1,
         2,
+        False,
         True,
         "กำ",
         2,
@@ -517,6 +581,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "षिx",  # Devanagari ssi grapheme (two codepoints)
         1,
         2,
+        False,
         True,
         "षि",
         2,
@@ -528,6 +593,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "क्षिx",  # Devanagari kshi grapheme (four codepoints)
         2,
         3,
+        False,
         True,
         "क्षि",
         3,
@@ -539,6 +605,7 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         "क्षिx",  # Devanagari kshi grapheme (four codepoints)
         1,
         2,
+        False,
         True,
         "क्षि",
         3,
@@ -546,18 +613,56 @@ TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA: list[
         0,
         "x",
     ),
+    (
+        "Hello wor",
+        10,
+        20,
+        False,
+        False,
+        "Hello wor",
+        9,
+        "",
+        0,
+        "",
+    ),
+    (
+        "Hello wor",
+        10,
+        20,
+        True,
+        False,
+        "Hello",
+        5,
+        " ",
+        1,
+        "wor",
+    ),
+    (
+        "Hello wo\u00adr",
+        10,
+        20,
+        True,
+        False,
+        "Hello",
+        5,
+        " ",
+        1,
+        "wo\u00adr",
+    ),
 ]
 
 
 @pytest.mark.parametrize(
-    "text, remaining_columns, total_columns, expected_newline, expected_text,"
-    " expected_text_columns, expected_space, expected_space_columns, expected_remainder",
+    "text, remaining_columns, total_columns, keep_nonseparable_end, expected_newline,"
+    " expected_text, expected_text_columns, expected_space, expected_space_columns,"
+    " expected_remainder",
     TEST_UNICODE_STRING_PROCESSOR_SPLIT_DATA,
 )
 def test_UnicodeStringProcessor_split(
     text: str,
     remaining_columns: int,
     total_columns: int,
+    keep_nonseparable_end: bool,
     expected_newline: bool,
     expected_text: str,
     expected_text_columns: int,
@@ -567,7 +672,10 @@ def test_UnicodeStringProcessor_split(
 ) -> None:
     proc = UnicodeStringProcessor()
     newline, text, text_columns, space, space_columns, remainder = proc.split(
-        text=text, remaining_columns=remaining_columns, total_columns=total_columns
+        text=text,
+        remaining_columns=remaining_columns,
+        total_columns=total_columns,
+        keep_nonseparable_end=keep_nonseparable_end,
     )
     print(
         newline, repr(text), text_columns, repr(space), space_columns, repr(remainder)

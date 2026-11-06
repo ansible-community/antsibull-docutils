@@ -356,7 +356,10 @@ class Collector:  # pylint: disable=too-many-instance-attributes
             remaining = self.width - (self.current_line_columns + self.space_columns)
             newline, main, main_columns, space, space_columns, text = (
                 self.string_proc.split(
-                    text=text, remaining_columns=remaining, total_columns=self.width
+                    text=text,
+                    remaining_columns=remaining,
+                    total_columns=self.width,
+                    keep_nonseparable_end=False,
                 )
             )
             assert main != "" or space != ""
