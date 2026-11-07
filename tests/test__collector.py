@@ -21,7 +21,7 @@ from antsibull_docutils._collector import (
     Formatting,
     State,
 )
-from antsibull_docutils._string import ASCIIStringProcessor
+from antsibull_docutils._string import ASCIIStringProcessor, UnicodeStringProcessor
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from collections.abc import Sequence
@@ -62,7 +62,9 @@ def process_input(  # noqa: C901
             collector.update_state()
 
 
-TEST_EMPTYSTATE_COLLECTOR_DATA: list[tuple[list[InputElt], int, bool, list[str]]] = [
+TEST_ASCII_EMPTYSTATE_COLLECTOR_DATA: list[
+    tuple[list[InputElt], int, bool, list[str]]
+] = [
     (
         [],
         1,
@@ -162,14 +164,20 @@ TEST_EMPTYSTATE_COLLECTOR_DATA: list[tuple[list[InputElt], int, bool, list[str]]
         False,
         ["a", "b", "", "c", "", "d", "", "e", "", "f", "", "", "g"],
     ),
+    (
+        ["xyz ", (Formatting.ITALICS, "push"), " ", "x-y-z"],
+        10,
+        True,
+        ["xyz  x-y-z"],
+    ),
 ]
 
 
 @pytest.mark.parametrize(
     "input, width, ignore_newlines, expected_lines",
-    TEST_EMPTYSTATE_COLLECTOR_DATA,
+    TEST_ASCII_EMPTYSTATE_COLLECTOR_DATA,
 )
-def test_EmptyState_Collector(
+def test_ASCIIEmptyState_Collector(
     input: list[InputElt],
     width: int,
     ignore_newlines: bool,
@@ -191,7 +199,9 @@ def test_EmptyState_Collector(
     assert lines == expected_lines
 
 
-TEST_ANSISTATE_COLLECTOR_DATA: list[tuple[list[InputElt], int, bool, list[str]]] = [
+TEST_ASCII_ANSISTATE_COLLECTOR_DATA: list[
+    tuple[list[InputElt], int, bool, list[str]]
+] = [
     (
         [
             "Hello world! This ",
@@ -282,20 +292,82 @@ TEST_ANSISTATE_COLLECTOR_DATA: list[tuple[list[InputElt], int, bool, list[str]]]
         True,
         ["foo bar", "baz bam!"],
     ),
+    (
+        ["xyz ", (Formatting.ITALICS, "push"), " ", "x-y-z"],
+        10,
+        True,
+        ["xyz \x1b[0;3m x-y-z\x1b[0m"],
+    ),
 ]
 
 
 @pytest.mark.parametrize(
     "input, width, ignore_newlines, expected_lines",
-    TEST_ANSISTATE_COLLECTOR_DATA,
+    TEST_ASCII_ANSISTATE_COLLECTOR_DATA,
 )
-def test_ANSIState_Collector(
+def test_ASCII_ANSIState_Collector(
     input: list[InputElt],
     width: int,
     ignore_newlines: bool,
     expected_lines: list[str],
 ) -> None:
     string_proc = ASCIIStringProcessor()
+    state = ANSIState()
+    assert state.clone() is not state
+    collector = Collector(
+        width=width,
+        state=state,
+        string_proc=string_proc,
+        ignore_newlines=ignore_newlines,
+    )
+    process_input(input, state, collector)
+    lines = collector.close()
+    for line in lines:
+        print(line)
+    assert lines == expected_lines
+
+
+TEST_UNICODE_ANSISTATE_COLLECTOR_DATA: list[
+    tuple[list[InputElt], int, bool, list[str]]
+] = [
+    (
+        ["x\u00ady\u00adz ", (Formatting.ITALICS, "push"), " ", "x-y-z"],
+        10,
+        True,
+        ["xyz \x1b[0;3m x-y-z\x1b[0m"],
+    ),
+    (
+        ["x\u00ady\u00adz ", (Formatting.ITALICS, "push"), " ", "xyz"],
+        6,
+        True,
+        ["xyz", "\x1b[0;3mxyz\x1b[0m"],
+    ),
+    (
+        ["\n", (Formatting.ITALICS, "push"), "\n"],
+        6,
+        True,
+        [],
+    ),
+    (
+        ["\n", (Formatting.ITALICS, "push"), ("new-par",), "\n"],
+        6,
+        True,
+        [],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "input, width, ignore_newlines, expected_lines",
+    TEST_UNICODE_ANSISTATE_COLLECTOR_DATA,
+)
+def test_Unicode_ANSIState_Collector(
+    input: list[InputElt],
+    width: int,
+    ignore_newlines: bool,
+    expected_lines: list[str],
+) -> None:
+    string_proc = UnicodeStringProcessor()
     state = ANSIState()
     assert state.clone() is not state
     collector = Collector(
