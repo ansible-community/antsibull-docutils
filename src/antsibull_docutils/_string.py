@@ -11,6 +11,7 @@ String utilities.
 from __future__ import annotations
 
 import abc
+import re
 import sys
 import typing as t
 import unicodedata
@@ -65,18 +66,25 @@ class StringProcessor(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def split(
-        self, *, text: str, remaining_columns: int, total_columns: int
-    ) -> tuple[bool, str, int, str, int, str]:
+        self,
+        *,
+        text: str,
+        remaining_columns: int,
+        total_columns: int,
+        keep_nonseparable_end: bool,
+    ) -> tuple[bool, list[int], str, int, str, int, str]:
         """
         Given a text, try to determine a beginning that fits into the current line,
         or in the next line, and the remainder.
 
-        The return value is a tuple ``(newline, text, text_columns, space,
-        space_columns, remainder)``, where:
+        The return value is a tuple ``(newline, removed_codepoints, text, text_columns,
+        space, space_columns, remainder)``, where:
 
         newline
             Whether ``text`` fits into this line (``False``),
             or needs to be put into a new line (``True``).
+        removed_codepoints
+            List of codepoints removed from ``text + space``.
         text
             The text to put into this or the next line.
         text_columns
@@ -101,12 +109,12 @@ class ASCIIStringProcessor(StringProcessor):
         """
         return len(text)
 
-    def _strip_space(self, text: str) -> tuple[str, int, str]:
+    def _strip_space(self, text: str, extra_rest: str) -> tuple[str, int, str]:
         length = len(text)
         index = 0
         while index < length and text[index] == " ":
             index += 1
-        return text[:index], index, text[index:]
+        return text[:index], index, text[index:] + extra_rest
 
     def _split_fit(self, text: str) -> tuple[str, int, str, int]:
         idx = len(text)
@@ -115,7 +123,7 @@ class ASCIIStringProcessor(StringProcessor):
         return text[:idx], idx, text[idx:], len(text) - idx
 
     def _split_make_fitting(
-        self, text: str, columns: int
+        self, text: str, columns: int, extra_rest: str
     ) -> tuple[str, int, str, int, str] | None:
         idx = text.rfind(" ", 0, columns + 1)
         if idx < 0:
@@ -123,12 +131,17 @@ class ASCIIStringProcessor(StringProcessor):
         while idx > 0 and text[idx - 1] == " ":
             idx -= 1
         if idx == 0 and text[0] == " ":
-            return "", 0, *self._strip_space(text[idx:])
-        return text[:idx], idx, *self._strip_space(text[idx:])
+            return "", 0, *self._strip_space(text[idx:], extra_rest)
+        return text[:idx], idx, *self._strip_space(text[idx:], extra_rest)
 
     def split(
-        self, *, text: str, remaining_columns: int, total_columns: int
-    ) -> tuple[bool, str, int, str, int, str]:
+        self,
+        *,
+        text: str,
+        remaining_columns: int,
+        total_columns: int,
+        keep_nonseparable_end: bool,
+    ) -> tuple[bool, list[int], str, int, str, int, str]:
         """
         Given a text, try to determine a beginning that fits into the current line,
         or in the next line, and the remainder.
@@ -150,33 +163,65 @@ class ASCIIStringProcessor(StringProcessor):
         remainder:
             The remaining text.
         """
+        extra_rest = ""
+        if keep_nonseparable_end:
+            idx = len(text)
+            while idx > 0 and text[idx - 1] != " ":
+                idx -= 1
+            extra_rest = text[idx:]
+            text = text[:idx]
         newline = remaining_columns < total_columns
         if newline:
             if len(text) <= remaining_columns:
-                return False, *self._split_fit(text), ""
-            result = self._split_make_fitting(text, remaining_columns)
+                return False, [], *self._split_fit(text), extra_rest
+            result = self._split_make_fitting(text, remaining_columns, extra_rest)
             if result:
-                return False, *result
+                return False, [], *result
             # We must put it into the next line, so trim leading space
             text = text.lstrip()
         if len(text) <= total_columns:
-            return newline, *self._split_fit(text), ""
-        result = self._split_make_fitting(text, total_columns)
+            return newline, [], *self._split_fit(text), extra_rest
+        result = self._split_make_fitting(text, total_columns, extra_rest)
         if result:
-            return newline, *result
-        return newline, text[:total_columns], total_columns, "", 0, text[total_columns:]
+            return newline, [], *result
+        return (
+            newline,
+            [],
+            text[:total_columns],
+            total_columns,
+            "",
+            0,
+            text[total_columns:] + extra_rest,
+        )
 
 
 _HYPHEN_MINUS = "-"
 _HYPHEN = "\u2010"
 _SOFT_HYPHEN = "\u00ad"
 _ZERO_WIDTH = (_SOFT_HYPHEN,)
+_ZERO_WIDTH_PATTERN = re.compile(
+    "(" + "|".join(re.escape(elt) for elt in _ZERO_WIDTH) + ")"
+)
 
 
-def _remove_zero_width(*, text: str) -> str:
-    for codepoint in _ZERO_WIDTH:
-        text = text.replace(codepoint, "")
-    return text
+def _remove_zero_width(
+    *, text: str, removed_codepoints: list[int], position_add: int
+) -> str:
+    result = []
+    index = 0
+    length = len(text)
+    while index < length:
+        match = _ZERO_WIDTH_PATTERN.search(text, pos=index)
+        if match is None:
+            result.append(text[index:])
+            break
+        if match.start() > index:
+            result.append(text[index : match.start()])
+        removed_codepoints.extend(
+            range(match.start() + position_add, match.end() + position_add)
+        )
+        index = match.end()
+    return "".join(result)
 
 
 def _get_column_count(*, text: str, start: int, end: int) -> int:
@@ -269,20 +314,35 @@ class UnicodeStringProcessor(StringProcessor):
         next_position: int,
         column_count: int,
         appendix: str | None,
-    ) -> tuple[bool, str, int, str, int, str]:
+        extra_rest: str | None,
+    ) -> tuple[bool, list[int], str, int, str, int, str]:
+        removed_codepoints = list(range(0, initial_skip))
         remainder_index, space_columns = _find_space(
             text=text, start=next_position, end=len(text)
         )
-        main_text = _remove_zero_width(text=text[initial_skip:position])
+        main_text = _remove_zero_width(
+            text=text[initial_skip:position],
+            removed_codepoints=removed_codepoints,
+            position_add=initial_skip,
+        )
         if appendix is not None:
             main_text += appendix
+        remainder = text[remainder_index:]
+        if extra_rest is not None:
+            remainder += extra_rest
+        removed_codepoints.extend(range(position, next_position))
         return (
             newline,
+            removed_codepoints,
             main_text,
             column_count,
-            _remove_zero_width(text=text[next_position:remainder_index]),
+            _remove_zero_width(
+                text=text[next_position:remainder_index],
+                removed_codepoints=removed_codepoints,
+                position_add=next_position,
+            ),
             space_columns,
-            text[remainder_index:],
+            remainder,
         )
 
     @staticmethod
@@ -295,7 +355,8 @@ class UnicodeStringProcessor(StringProcessor):
         space_end: int,
         space_columns: int,
         end_index: int,
-    ) -> tuple[bool, str, int, str, int, str]:
+        extra_rest: str | None,
+    ) -> tuple[bool, list[int], str, int, str, int, str]:
         initial_skip = 0
         newline = columns > remaining_columns and total_columns > remaining_columns
         if newline:
@@ -309,11 +370,35 @@ class UnicodeStringProcessor(StringProcessor):
             next_position=end_index,
             column_count=columns,
             appendix=None,
+            extra_rest=extra_rest,
         )
 
+    @staticmethod
+    def _extract_rest(
+        *, text: str, length: int, keep_nonseparable_end: bool
+    ) -> tuple[str, int, str | None]:
+        if not keep_nonseparable_end:
+            return text, length, None
+        while length > 0:
+            if unicodedata.category(text[length - 1]) == "Zs":
+                break
+            if (
+                length > 1
+                and unicodedata.category(text[length - 2]) != "Zs"
+                and text[length - 1] in (_HYPHEN_MINUS, _HYPHEN)
+            ):
+                break
+            length -= 1
+        return text[:length], length, text[length:]
+
     def split(  # pylint: disable=too-many-locals
-        self, *, text: str, remaining_columns: int, total_columns: int
-    ) -> tuple[bool, str, int, str, int, str]:
+        self,
+        *,
+        text: str,
+        remaining_columns: int,
+        total_columns: int,
+        keep_nonseparable_end: bool,
+    ) -> tuple[bool, list[int], str, int, str, int, str]:
         """
         Given a text, try to determine a beginning that fits into the current line,
         or in the next line, and the remainder.
@@ -338,7 +423,11 @@ class UnicodeStringProcessor(StringProcessor):
         length = len(text)
         space_end, space_columns = _find_space(text=text, start=0, end=length)
         if space_end == length:
-            return False, "", 0, text, space_columns, ""
+            return False, [], "", 0, text, space_columns, ""
+
+        text, length, extra_rest = UnicodeStringProcessor._extract_rest(
+            text=text, length=length, keep_nonseparable_end=keep_nonseparable_end
+        )
 
         columns = 0
         potential_split: tuple[int, int, int, str | None] | None = None
@@ -373,6 +462,7 @@ class UnicodeStringProcessor(StringProcessor):
                     next_position=next_position,
                     column_count=column_count,
                     appendix=appendix,
+                    extra_rest=extra_rest,
                 )
             if columns - space_columns > total_columns:
                 if potential_split is not None and potential_split[2] <= total_columns:
@@ -385,6 +475,7 @@ class UnicodeStringProcessor(StringProcessor):
                         next_position=next_position,
                         column_count=column_count - space_columns,
                         appendix=appendix,
+                        extra_rest=extra_rest,
                     )
                 if columns > cur_columns:
                     columns -= cur_columns
@@ -396,6 +487,7 @@ class UnicodeStringProcessor(StringProcessor):
                         space_end=space_end,
                         space_columns=space_columns,
                         end_index=start,
+                        extra_rest=extra_rest,
                     )
             potential_split = opt_potential_split or potential_split
             last_was_space = is_space
@@ -413,6 +505,7 @@ class UnicodeStringProcessor(StringProcessor):
             space_end=space_end,
             space_columns=space_columns,
             end_index=end_index,
+            extra_rest=extra_rest,
         )
 
 
