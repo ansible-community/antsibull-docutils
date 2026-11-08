@@ -4,6 +4,26 @@ Antsibull docutils helpers Release Notes
 
 .. contents:: Topics
 
+v1.5.0
+======
+
+Release Summary
+---------------
+
+Feature release.
+
+Minor Changes
+-------------
+
+- The ``antsibull_docutils.text`` module allows to render documents as plain text with optional ANSI formatting. Nice formatting with Unicode aware grapheme splitting requires Python 3.15+ or the `graphemeu library <https://pypi.org/project/graphemeu/>`_, which can be installed through the ``[unicode]`` optional dependency group: ``pip install antsibull-docutils[unicode]`` (https://github.com/ansible-community/antsibull-docutils/pull/40, https://github.com/ansible-community/antsibull-docutils/pull/43, https://github.com/ansible-community/antsibull-docutils/pull/44).
+- The markdown renderer now also supports the ``tip``, ``important``, ``warning``, and ``caution`` admonitions (https://github.com/ansible-community/antsibull-docutils/pull/42).
+
+Bugfixes
+--------
+
+- Avoid function deprecated in docutils 0.22 (https://github.com/ansible-community/antsibull-docutils/pull/39).
+- Declare support for Python 3.15 (https://github.com/ansible-community/antsibull-docutils/pull/38).
+
 v1.4.1
 ======
 
