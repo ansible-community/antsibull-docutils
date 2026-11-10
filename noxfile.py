@@ -71,7 +71,7 @@ def lint(session: nox.Session):
     pass
 
 
-@nox.session(allow_parallel=True)
+@nox.session(allow_parallel=IN_CI)
 def formatters(session: nox.Session):
     install(session, ".[formatters]")
     posargs = list(session.posargs)
