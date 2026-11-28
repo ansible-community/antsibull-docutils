@@ -46,20 +46,16 @@ dependencies = [
 "Changelog" = "https://github.com/ansible-community/antsibull-docutils/tree/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-
 unicode = [
     "graphemeu >= 0.8.0; python_version < '3.15'",
 ]
-
 all = [
     "antsibull-docutils[unicode]",
 ]
 
-#
-# Development. Not user facing.
-#
-
+[dependency-groups]
 codeqa = [
+    "antsibull-docutils[all]",
     "antsibull-changelog",
     "flake8 >= 3.8.0",
     "pylint",
@@ -73,11 +69,13 @@ formatters = [
     "isort",
 ]
 test = [
+    "antsibull-docutils[all]",
     "pytest",
     "pytest-cov",
     "pytest-error-for-skips",
 ]
 typing = [
+    "antsibull-docutils[all]",
     "mypy",
     "types-docutils",
     "types-PyYAML",
@@ -85,11 +83,11 @@ typing = [
 ]
 dev = [
     # Used by nox sessions
-    "antsibull-docutils[codeqa]",
-    "antsibull-docutils[coverage]",
-    "antsibull-docutils[formatters]",
-    "antsibull-docutils[test]",
-    "antsibull-docutils[typing]",
+    {include-group = "codeqa"},
+    {include-group = "coverage"},
+    {include-group = "formatters"},
+    {include-group = "test"},
+    {include-group = "typing"},
     # misc
     "nox",
 ]

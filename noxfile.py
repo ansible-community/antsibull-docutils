@@ -37,7 +37,7 @@ def install(session: nox.Session, *args, editable=False, **kwargs):
     python=["3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"], allow_parallel=True
 )
 def test(session: nox.Session):
-    install(session, ".[all, test, coverage]", editable=True)
+    install(session, ".", "--group", "test", "--group", "coverage", editable=True)
     covfile = Path(session.create_tmp(), ".coverage")
     more_args = []
     if session.python not in {"3.9", "3.10", "3.11"}:
@@ -56,7 +56,7 @@ def test(session: nox.Session):
 
 @nox.session
 def coverage(session: nox.Session):
-    install(session, ".[coverage]", editable=True)
+    install(session, ".", "--group", "coverage", editable=True)
     combined = map(str, Path().glob(".nox/*/tmp/.coverage"))
     # Combine the results into a single .coverage file in the root
     session.run("coverage", "combine", "--keep", *combined)
@@ -73,7 +73,7 @@ def lint(session: nox.Session):
 
 @nox.session(allow_parallel=IN_CI)
 def formatters(session: nox.Session):
-    install(session, ".[all, formatters]")
+    install(session, ".", "--group", "formatters")
     posargs = list(session.posargs)
     if IN_CI:
         posargs.append("--check")
@@ -83,7 +83,7 @@ def formatters(session: nox.Session):
 
 @nox.session(allow_parallel=True)
 def codeqa(session: nox.Session):
-    install(session, ".[all, codeqa]", editable=True)
+    install(session, ".", "--group", "codeqa", editable=True)
     session.run("flake8", "src/antsibull_docutils", "tests", *session.posargs)
     session.run(
         "pylint",
@@ -99,7 +99,7 @@ def codeqa(session: nox.Session):
 
 @nox.session(allow_parallel=True)
 def typing(session: nox.Session):
-    install(session, ".[all, typing]")
+    install(session, ".", "--group", "typing")
     session.run("mypy", "src/antsibull_docutils", "tests")
 
 
